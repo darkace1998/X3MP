@@ -1,6 +1,6 @@
 # X3MP
 
-This is a multiplayer mod for the Game X3: Albion Prelude.
+This is an very very early stage multiplayer mod for the Game X3: Albion Prelude.
 It isn't very playable nor stable.
 
 # How to use
