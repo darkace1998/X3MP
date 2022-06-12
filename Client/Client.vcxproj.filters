@@ -1,0 +1,100 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="gui">
+      <UniqueIdentifier>{b084545c-e8a9-46ef-9e56-e4516a9d95ce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hooking">
+      <UniqueIdentifier>{1a0d09e2-1ebb-4e85-ab59-217b07df60dd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="util">
+      <UniqueIdentifier>{3acc3cf8-cf4e-4da7-a81f-1371769e9d63}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="util\pugixml">
+      <UniqueIdentifier>{fe1e7bf7-1a83-4462-bd79-76107d6708ce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="networking">
+      <UniqueIdentifier>{63ad31c7-c7cc-4c67-967a-1401855658ee}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="gameinterface">
+      <UniqueIdentifier>{414cfdbc-20c6-4f2e-b76c-7d397cd5f74a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="directx.cpp">
+      <Filter>hooking</Filter>
+    </ClCompile>
+    <ClCompile Include="Settings.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="pugixml.cpp">
+      <Filter>util\pugixml</Filter>
+    </ClCompile>
+    <ClCompile Include="mem.cpp">
+      <Filter>hooking</Filter>
+    </ClCompile>
+    <ClCompile Include="client.cpp">
+      <Filter>networking</Filter>
+    </ClCompile>
+    <ClCompile Include="Console.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="Chatbox.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="Mod.cpp" />
+    <ClCompile Include="X3Util.cpp">
+      <Filter>gameinterface</Filter>
+    </ClCompile>
+    <ClCompile Include="X3Functions.cpp">
+      <Filter>gameinterface</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="X3Functions.h">
+      <Filter>gameinterface</Filter>
+    </ClInclude>
+    <ClInclude Include="X3Classes.h">
+      <Filter>gameinterface</Filter>
+    </ClInclude>
+    <ClInclude Include="directx.h">
+      <Filter>hooking</Filter>
+    </ClInclude>
+    <ClInclude Include="Settings.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="Console.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="pugixml.hpp">
+      <Filter>util\pugixml</Filter>
+    </ClInclude>
+    <ClInclude Include="pugiconfig.hpp">
+      <Filter>util\pugixml</Filter>
+    </ClInclude>
+    <ClInclude Include="mem.h">
+      <Filter>hooking</Filter>
+    </ClInclude>
+    <ClInclude Include="client.h">
+      <Filter>networking</Filter>
+    </ClInclude>
+    <ClInclude Include="Chatbox.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="X3Util.h">
+      <Filter>gameinterface</Filter>
+    </ClInclude>
+    <ClInclude Include="astruct_9.h">
+      <Filter>gameinterface</Filter>
+    </ClInclude>
+    <ClInclude Include="defines.h" />
+    <ClInclude Include="Mod.h" />
+  </ItemGroup>
+</Project>
