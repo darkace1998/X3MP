@@ -1,0 +1,49 @@
+# Build artifacts
+/server-go/x3mp-server
+/server-go/x3mp-server.exe
+*.exe
+*.dll
+*.so
+*.o
+*.obj
+
+# IDE files
+.vs/
+.vscode/launch.json
+.vscode/settings.json
+*.user
+*.ncb
+*.suo
+*.pdb
+*.idb
+*.tlb
+*.pch
+
+# CMake build files
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Temporary files
+*.tmp
+*.temp
+*~
+.DS_Store
+Thumbs.db
+
+# Go build files
+/server-go/go.sum
+
+# Configuration backups
+*.json.bak
+*.json.old
+
+# Log files
+*.log
+logs/
+
+# Dependencies that might be copied locally
+SDKs/

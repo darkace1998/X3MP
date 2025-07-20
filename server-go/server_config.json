@@ -1,0 +1,7 @@
+{
+  "server_port": 13337,
+  "max_players": 32,
+  "server_name": "X3MP Go Server",
+  "log_level": "info",
+  "tick_rate": 60
+}

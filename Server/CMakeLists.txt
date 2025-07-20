@@ -10,6 +10,6 @@ include_directories(../../SDKs/GameNetworkingSockets/include ../X3Net/ ${CURSES_
 
 link_directories(../../SDKs/GameNetworkingSockets/bin ../../SDKs/lua-5.4.3/src)
 
-add_executable(x3mp_server Screen.cpp Universe.cpp Script.cpp Server.cpp main.cpp)
+add_executable(x3mp_server Screen.cpp Universe.cpp Script.cpp Server.cpp Config.cpp main.cpp)
 
 target_link_libraries(x3mp_server PRIVATE ${CURSES_LIBRARIES} dl lua Threads::Threads GameNetworkingSockets.so)
