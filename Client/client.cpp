@@ -37,9 +37,19 @@ void Client::Stop() {
 	g_bQuit = true;
 }
 
+bool Client::CheckConnectionTimeout() {
+	auto now = std::chrono::steady_clock::now();
+	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - connectionStartTime);
+	return elapsed.count() >= CONNECTION_TIMEOUT_MS;
+}
+
 void Client::Run(const char* ip, unsigned short port)
 	{
 	this->isConnected = false;
+	this->hasConnectionFailed = false;
+	this->hasTimedOut = false;
+	this->connectionStartTime = std::chrono::steady_clock::now();
+	
 		SteamNetworkingIPAddr serverAddr; serverAddr.Clear();
 /*
 #ifdef _DEBUG
@@ -73,6 +83,15 @@ void Client::Run(const char* ip, unsigned short port)
 		{
 			PollIncomingMessages();
 			PollConnectionStateChanges();
+			
+			// Check for connection timeout
+			if (!isConnected && !hasConnectionFailed && CheckConnectionTimeout()) {
+				hasTimedOut = true;
+				std::cout << "[ERR] Connection timeout after " << CONNECTION_TIMEOUT_MS/1000 << " seconds" << std::endl;
+				Stop();
+				break;
+			}
+			
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		}
 	}
@@ -147,7 +166,7 @@ void Client::Run(const char* ip, unsigned short port)
 		case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
 		{
 			g_bQuit = true;
-			//isConnected = false;
+			hasConnectionFailed = true;
 
 			// Print an appropriate message
 			if (pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connecting)

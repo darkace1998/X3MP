@@ -4,6 +4,7 @@
 #include <array>
 #include <algorithm>
 #include <sstream>
+#include <chrono>
 
 #include "defines.h"
 
@@ -146,8 +147,45 @@ DWORD WINAPI ModThread(HMODULE hModule)
 
     auto sectorPtr = (x3::Sector*)(uintptr_t)sectorBasePtr->EntityManager->EntityList; // Has to be executed before ship spawn and after sector creation
 
-    while (!client.isConnected)
+    // Wait for connection with timeout handling
+    auto connectionStartTime = std::chrono::steady_clock::now();
+    const int CONNECTION_WAIT_TIMEOUT_MS = 12000; // 12 seconds total wait time
+    
+    while (!client.isConnected && !client.hasConnectionFailed && !client.hasTimedOut)
+    {
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - connectionStartTime);
+        
+        if (elapsed.count() >= CONNECTION_WAIT_TIMEOUT_MS)
+        {
+            chatbox->SendChatMessage("Connection timeout! Unable to connect to server.", 255, 255, 100, 100);
+            chatbox->SendChatMessage("Please check server address and try again.", 255, 255, 100, 100);
+            
+            // Stop the client thread and exit
+            client.Stop();
+            clientThread.join();
+            
+            std::cout << "[ERR] Connection timeout in main thread after " << CONNECTION_WAIT_TIMEOUT_MS/1000 << " seconds. Exiting mod.";
+            Sleep(5000);
+            console.Close();
+            FreeLibraryAndExitThread(hModule, 0);
+        }
+        
         Sleep(100);
+    }
+    
+    if (client.hasConnectionFailed || client.hasTimedOut)
+    {
+        chatbox->SendChatMessage("Failed to connect to server!", 255, 255, 100, 100);
+        chatbox->SendChatMessage("Check server status and network connectivity.", 255, 255, 100, 100);
+        
+        clientThread.join();
+        
+        std::cout << "[ERR] Connection failed. Exiting mod in 5 seconds.";
+        Sleep(5000);
+        console.Close();
+        FreeLibraryAndExitThread(hModule, 0);
+    }
 
     chatbox->SendChatMessage("Connected successfully.", 255, 180, 180, 180);
 
@@ -186,7 +224,7 @@ DWORD WINAPI ModThread(HMODULE hModule)
 
         //CreateInSectorEntity(entity, 0x1); //PBK Schuss
         //SetSimulatorParam(0, 0, 0x96, "NotifyIntoLaserRange", 1, 0); //Ziel ist nun in Feuerreichweite
-        //SetSimulatorParam(0, 0, 0x96, "NotifyOutofLaserRange", 1, 0); //Ziel verlässt Feuerreichweite
+        //SetSimulatorParam(0, 0, 0x96, "NotifyOutofLaserRange", 1, 0); //Ziel verlï¿½sst Feuerreichweite
         //SetSimulatorParam(0, 0, 0x96, "NotifyTargetLock", 1, 2); //
         //SetSimulatorParam(8, 0, 0x96, "NotifyDockingAbort", 1, 1); //Andockvorgang abgebrochen
         //SetSimulatorParam(8, 0, SomeAddressOrCounter, "CanWarp", 1, 1); //Called when entering jumpgate

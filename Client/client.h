@@ -26,6 +26,7 @@
 using namespace x3::net;
 
 const uint16 DEFAULT_SERVER_PORT = 13337;
+const int CONNECTION_TIMEOUT_MS = 10000; // 10 second timeout
 
 void DebugOutput(ESteamNetworkingSocketsDebugOutputType eType, const char* pszMsg);
 void InitSteamDatagramConnectionSockets();
@@ -40,10 +41,14 @@ class Client
 
 public:
 	bool isConnected = false;
+	bool hasConnectionFailed = false;
+	bool hasTimedOut = false;
+	std::chrono::steady_clock::time_point connectionStartTime;
 	std::queue<x3::net::Packet*> receivedPackets;
 
 	void Run(const char* ip, unsigned short port);
 	void Stop();
+	bool CheckConnectionTimeout();
 	
 	void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo);
 
