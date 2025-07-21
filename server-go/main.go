@@ -32,6 +32,7 @@ const (
 	PacketConnectAcknowledge
 	PacketChatMessage
 	PacketPlayerChatEnter
+	PacketDisconnect
 )
 
 // Base packet structure
@@ -112,6 +113,16 @@ type ChatMessage struct {
 	Message [512]byte
 }
 
+// CreateStar packet
+type CreateStar struct {
+	Packet
+	StarID int32
+	Model  int32
+	PosX   int32
+	PosY   int32
+	PosZ   int32
+}
+
 // PlayerChatEnter packet
 type PlayerChatEnter struct {
 	Packet
@@ -128,15 +139,27 @@ type Player struct {
 	LastSeen time.Time
 }
 
+// Station represents a space station/star
+type Station struct {
+	ID    int32
+	Model int32
+	PosX  int32
+	PosY  int32
+	PosZ  int32
+	Name  string
+}
+
 // Server represents the game server
 type Server struct {
-	config     Config
-	conn       *net.UDPConn
-	players    map[int32]*Player
-	nextID     int32
-	nextShipID int32
-	mu         sync.RWMutex
-	shutdown   chan struct{}
+	config      Config
+	conn        *net.UDPConn
+	players     map[int32]*Player
+	stations    map[int32]*Station
+	nextID      int32
+	nextShipID  int32
+	nextStarID  int32
+	mu          sync.RWMutex
+	shutdown    chan struct{}
 }
 
 // NewServer creates a new server instance
@@ -144,8 +167,10 @@ func NewServer(config Config) *Server {
 	return &Server{
 		config:     config,
 		players:    make(map[int32]*Player),
+		stations:   make(map[int32]*Station),
 		nextID:     1,
 		nextShipID: 1000,
+		nextStarID: 2000,
 		shutdown:   make(chan struct{}),
 	}
 }
@@ -165,6 +190,9 @@ func (s *Server) Start() error {
 	log.Printf("X3MP Go Server started on port %d", s.config.ServerPort)
 	log.Printf("Server: %s | Max Players: %d | Tick Rate: %d", 
 		s.config.ServerName, s.config.MaxPlayers, s.config.TickRate)
+
+	// Initialize default stations
+	s.initializeStations()
 
 	// Start the game loop in a separate goroutine
 	go s.gameLoop()
@@ -197,7 +225,11 @@ func (s *Server) updatePlayers() {
 	// Clean up disconnected players (no activity for 30 seconds)
 	for id, player := range s.players {
 		if now.Sub(player.LastSeen) > 30*time.Second {
-			log.Printf("Player %d (%s) timed out, removing", id, player.Name)
+			log.Printf("🚪 Player %d (%s) left the server (timed out)", id, player.Name)
+			
+			// Broadcast ship deletion to all other players
+			s.broadcastDeleteShipUnlocked(player.ShipID)
+			
 			delete(s.players, id)
 		}
 	}
@@ -247,6 +279,8 @@ func (s *Server) processPacket(data []byte, addr *net.UDPAddr) {
 		s.handleChatMessage(data, addr)
 	case PacketPlayerChatEnter:
 		s.handlePlayerChatEnter(data, addr)
+	case PacketDisconnect:
+		s.handleDisconnect(data, addr)
 	default:
 		log.Printf("Unknown packet type %d from %s", packetType, addr)
 	}
@@ -292,7 +326,7 @@ func (s *Server) handleConnect(data []byte, addr *net.UDPAddr) {
 	s.players[clientID] = player
 	s.mu.Unlock()
 
-	log.Printf("Player %d (%s) connected from %s with model %d", clientID, name, addr, model)
+	log.Printf("🎮 Player %d (%s) joined the server from %s with model %d", clientID, name, addr, model)
 
 	// Send connection acknowledgment
 	s.sendConnectAcknowledge(clientID, shipID, addr)
@@ -302,6 +336,9 @@ func (s *Server) handleConnect(data []byte, addr *net.UDPAddr) {
 	
 	// Send existing ships to new player
 	s.sendExistingShips(addr)
+	
+	// Send existing stations to new player
+	s.sendExistingStations(addr)
 }
 
 // handleShipUpdate processes ship position updates
@@ -358,7 +395,7 @@ func (s *Server) handleChatMessage(data []byte, addr *net.UDPAddr) {
 		message = message[:nullPos]
 	}
 
-	log.Printf("Chat from %s: %s", player.Name, message)
+	log.Printf("💬 Chat from %s: %s", player.Name, message)
 	
 	// Broadcast to all players
 	s.broadcast(data)
@@ -368,6 +405,51 @@ func (s *Server) handleChatMessage(data []byte, addr *net.UDPAddr) {
 func (s *Server) handlePlayerChatEnter(data []byte, addr *net.UDPAddr) {
 	// Similar to handleChatMessage but for chat enter events
 	s.broadcast(data)
+}
+
+// handleDisconnect processes player disconnect requests
+func (s *Server) handleDisconnect(data []byte, addr *net.UDPAddr) {
+	// Find player
+	s.mu.Lock()
+	var player *Player
+	for _, p := range s.players {
+		if p.Addr.String() == addr.String() {
+			player = p
+			break
+		}
+	}
+	
+	if player != nil {
+		log.Printf("🚪 Player %d (%s) left the server (graceful disconnect)", player.ID, player.Name)
+		
+		// Broadcast ship deletion to all other players
+		s.broadcastDeleteShipUnlocked(player.ShipID)
+		
+		delete(s.players, player.ID)
+	}
+	s.mu.Unlock()
+}
+
+// initializeStations creates default stations in the universe
+func (s *Server) initializeStations() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	// Add some example stations
+	stations := []Station{
+		{ID: s.nextStarID, Model: 1, PosX: 0, PosY: 0, PosZ: 0, Name: "Central Station"},
+		{ID: s.nextStarID + 1, Model: 2, PosX: 100000, PosY: 0, PosZ: 0, Name: "Trade Hub Alpha"},
+		{ID: s.nextStarID + 2, Model: 3, PosX: -100000, PosY: 50000, PosZ: 0, Name: "Mining Outpost"},
+		{ID: s.nextStarID + 3, Model: 4, PosX: 0, PosY: -75000, PosZ: 25000, Name: "Research Station"},
+	}
+	
+	for _, station := range stations {
+		s.stations[station.ID] = &station
+		log.Printf("🏭 Initialized station: %s (ID: %d) at position (%d, %d, %d)", 
+			station.Name, station.ID, station.PosX, station.PosY, station.PosZ)
+	}
+	
+	s.nextStarID += int32(len(stations))
 }
 
 // sendConnectAcknowledge sends connection acknowledgment to a player
@@ -427,6 +509,58 @@ func (s *Server) sendExistingShips(addr *net.UDPAddr) {
 			log.Printf("Error sending existing ship to %s: %v", addr, err)
 		}
 	}
+}
+
+// broadcastDeleteShipUnlocked broadcasts ship deletion (assumes lock is held)
+func (s *Server) broadcastDeleteShipUnlocked(shipID int32) {
+	packet := make([]byte, 9) // DeleteShip packet size
+	packet[0] = byte(PacketDeleteShip)
+	binary.LittleEndian.PutUint32(packet[1:5], 9)
+	binary.LittleEndian.PutUint32(packet[5:9], uint32(shipID))
+
+	for _, player := range s.players {
+		_, err := s.conn.WriteToUDP(packet, player.Addr)
+		if err != nil {
+			log.Printf("Error sending delete ship to player %d: %v", player.ID, err)
+		}
+	}
+}
+
+// sendExistingStations sends information about existing stations to a new player
+func (s *Server) sendExistingStations(addr *net.UDPAddr) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, station := range s.stations {
+		// Send CreateStar for each existing station
+		packet := make([]byte, 25) // CreateStar packet size
+		packet[0] = byte(PacketCreateStar)
+		binary.LittleEndian.PutUint32(packet[1:5], 25)
+		binary.LittleEndian.PutUint32(packet[5:9], uint32(station.ID))
+		binary.LittleEndian.PutUint32(packet[9:13], uint32(station.Model))
+		binary.LittleEndian.PutUint32(packet[13:17], uint32(station.PosX))
+		binary.LittleEndian.PutUint32(packet[17:21], uint32(station.PosY))
+		binary.LittleEndian.PutUint32(packet[21:25], uint32(station.PosZ))
+		
+		_, err := s.conn.WriteToUDP(packet, addr)
+		if err != nil {
+			log.Printf("Error sending existing station to %s: %v", addr, err)
+		}
+	}
+}
+
+// broadcastCreateStar broadcasts station creation to all players
+func (s *Server) broadcastCreateStar(starID, model, posX, posY, posZ int32) {
+	packet := make([]byte, 25) // CreateStar packet size
+	packet[0] = byte(PacketCreateStar)
+	binary.LittleEndian.PutUint32(packet[1:5], 25)
+	binary.LittleEndian.PutUint32(packet[5:9], uint32(starID))
+	binary.LittleEndian.PutUint32(packet[9:13], uint32(model))
+	binary.LittleEndian.PutUint32(packet[13:17], uint32(posX))
+	binary.LittleEndian.PutUint32(packet[17:21], uint32(posY))
+	binary.LittleEndian.PutUint32(packet[21:25], uint32(posZ))
+
+	s.broadcast(packet)
 }
 
 // broadcast sends a packet to all connected players

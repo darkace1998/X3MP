@@ -9,8 +9,26 @@ A proof-of-concept implementation of the X3MP server in Go, demonstrating improv
 - **Cross-Platform**: Single binary runs on Windows, Linux, macOS
 - **Configurable**: JSON configuration with sensible defaults
 - **Binary Compatible**: Maintains protocol compatibility with existing C++ client
-- **Better Logging**: Structured logging with different levels
+- **Enhanced Logging**: Rich logging with emojis for player events and station management
+- **Station Support**: Full support for space stations/stars with CreateStar packets
 - **Graceful Shutdown**: Clean resource cleanup on exit
+
+## Enhanced Features
+
+### 🎮 Player Event Logging
+- **Join Events**: `🎮 Player 1 (PlayerName) joined the server from IP:PORT with model X`
+- **Leave Events**: `🚪 Player 1 (PlayerName) left the server (graceful disconnect/timed out)`
+- **Chat Events**: `💬 Chat from PlayerName: message content`
+
+### 🏭 Station Management System
+- **Automatic Station Initialization**: Server creates default stations on startup
+- **Station Broadcasting**: New players receive all existing stations
+- **CreateStar Packet Support**: Full compatibility with C++ client station rendering
+- **Default Stations**:
+  - Central Station (ID: 2000) at position (0, 0, 0)
+  - Trade Hub Alpha (ID: 2001) at position (100000, 0, 0) 
+  - Mining Outpost (ID: 2002) at position (-100000, 50000, 0)
+  - Research Station (ID: 2003) at position (0, -75000, 25000)
 
 ## Protocol Compatibility
 
@@ -21,7 +39,9 @@ This Go server implements the exact same network protocol as the original C++ se
 - `PacketChatMessage` - Chat messages between players
 - `PacketCreateShip` - Ship creation notifications
 - `PacketDeleteShip` - Ship removal notifications
+- `PacketCreateStar` - Station/star creation notifications ⭐ **NEW**
 - `PacketConnectAcknowledge` - Connection confirmation
+- `PacketDisconnect` - Graceful player disconnection ⭐ **NEW**
 - And more...
 
 All packet structures match the original C++ layout using little-endian binary encoding.
