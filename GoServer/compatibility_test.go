@@ -10,6 +10,8 @@ import (
 	"x3mp_goserver/network"
 )
 
+// This file will contain the compatibility tests.
+
 // serializePacket manually serializes a packet struct into a byte slice that
 // is compatible with the C++ client's expected memory layout.
 // C++ Layout: [PacketType (int32)][Size (uint32)][Payload...]
@@ -112,7 +114,6 @@ func TestServerGameStateUpdate(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// 3. Verify server state
-	// No lock needed here for universe because GetEntity is thread-safe.
 	ship, ok := server.universe.GetEntity(shipID)
 	if !ok {
 		t.Fatalf("Ship with ID %d not found in server universe", shipID)
