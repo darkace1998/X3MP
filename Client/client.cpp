@@ -1,145 +1,145 @@
 #include "client.h"
 #pragma warning( disable : 26812)
 
-Client* s_pCallbackInstance = nullptr;
-
-
-void InitSteamDatagramConnectionSockets()
+bool InitWinsock()
 {
-	SteamDatagramErrMsg errMsg;
-	if (!GameNetworkingSockets_Init(nullptr, errMsg))
-	{
-		std::cout << "Fatal: GameNetworkingSockets_Init failed. " << errMsg << std::endl;
-		exit(1);
+	WSADATA wsaData;
+	int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	if (iResult != 0) {
+		std::cout << "[ERR] WSAStartup failed: " << iResult << std::endl;
+		return false;
 	}
-
-	g_logTimeZero = SteamNetworkingUtils()->GetLocalTimestamp();
-
-	SteamNetworkingUtils()->SetDebugOutputFunction(k_ESteamNetworkingSocketsDebugOutputType_Msg, DebugOutput);
+	return true;
 }
 
-void ShutdownSteamDatagramConnectionSockets()
+void ShutdownWinsock()
 {
-	// Give connections time to finish up.  This is an application layer protocol
-	// here, it's not TCP.  Note that if you have an application and you need to be
-	// more sure about cleanup, you won't be able to do this.  You will need to send
-	// a message and then either wait for the peer to close the connection, or
-	// you can pool the connection to see if any reliable data is pending.
-	std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-	GameNetworkingSockets_Kill();
-}
-
-void DebugOutput(ESteamNetworkingSocketsDebugOutputType eType, const char* pszMsg)
-{
-	SteamNetworkingMicroseconds time = SteamNetworkingUtils()->GetLocalTimestamp() - g_logTimeZero;
-	std::cout << "[DBG] " << pszMsg << std::endl;
+	WSACleanup();
 }
 
 void Client::Stop() {
 	m_bRunning = false;
+	if (m_socket != INVALID_SOCKET) {
+		closesocket(m_socket);
+		m_socket = INVALID_SOCKET;
+	}
 }
 
 void Client::Run(const char* ip, unsigned short port)
 {
-	m_serverIp = ip;
-	m_serverPort = port;
+	if (!InitWinsock()) {
+		return;
+	}
+
+	Connect(ip, port);
+	if (connectionStatus == ConnectionStatus::Failed) {
+		ShutdownWinsock();
+		return;
+	}
+
 	m_bRunning = true;
-
-	// Create client and server sockets
-	InitSteamDatagramConnectionSockets();
-
-	// Select instance to use.  For now we'll always use the default.
-	m_pInterface = SteamNetworkingSockets();
-
-	Connect();
-
 	while (m_bRunning)
 	{
 		PollIncomingMessages();
-		PollConnectionStateChanges();
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 	}
+
+	ShutdownWinsock();
 }
 
-void Client::Connect()
+void Client::Connect(const char* ip, unsigned short port)
 {
 	this->connectionStatus = ConnectionStatus::Connecting;
-	SteamNetworkingIPAddr serverAddr; serverAddr.Clear();
-	serverAddr.ParseString(m_serverIp.c_str());
-	serverAddr.m_port = m_serverPort;
 
-	// Start connecting
-	char szAddr[SteamNetworkingIPAddr::k_cchMaxString];
-	serverAddr.ToString(szAddr, sizeof(szAddr), true);
-	std::cout << "[INF] Connecting to server at " << szAddr << std::endl;
-	SteamNetworkingConfigValue_t opt;
-	opt.SetPtr(k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged, (void*)SteamNetConnectionStatusChangedCallback);
-	m_hConnection = m_pInterface->ConnectByIPAddress(serverAddr, 1, &opt);
-	if (m_hConnection == k_HSteamNetConnection_Invalid) {
-		std::cout << "[ERR] Failed to create connection" << std::endl;
+	m_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (m_socket == INVALID_SOCKET) {
+		std::cout << "[ERR] Failed to create socket: " << WSAGetLastError() << std::endl;
 		this->connectionStatus = ConnectionStatus::Failed;
-	}
-}
-
-void Client::Reconnect()
-{
-	if (connectionStatus == ConnectionStatus::Connected || connectionStatus == ConnectionStatus::Connecting)
 		return;
+	}
 
-	Connect();
+	// Set non-blocking
+	u_long mode = 1;
+	if (ioctlsocket(m_socket, FIONBIO, &mode) != 0) {
+		std::cout << "[ERR] Failed to set non-blocking mode: " << WSAGetLastError() << std::endl;
+		closesocket(m_socket);
+		this->connectionStatus = ConnectionStatus::Failed;
+		return;
+	}
+
+	m_serverAddr.sin_family = AF_INET;
+	m_serverAddr.sin_port = htons(port);
+	inet_pton(AF_INET, ip, &m_serverAddr.sin_addr);
+
+	std::cout << "[INF] Client socket created. Ready to send to " << ip << ":" << port << std::endl;
+
+	// Since UDP is connectionless, we'll consider ourselves "Connected" after the first packet is sent
+	// and we receive a ConnectAcknowledge. For now, we are just "Connecting".
 }
 
-	void Client::PollIncomingMessages()
-	{
-		ISteamNetworkingMessage* pIncomingMsg = nullptr;
-		int numMsgs = m_pInterface->ReceiveMessagesOnConnection(m_hConnection, &pIncomingMsg, 1);
-		if (numMsgs == 0)
-			return;
-		if (numMsgs < 0)
-		{
-			std::cout << "[ERR] Error checking for messages, code " << numMsgs << ". Connection may have been lost." << std::endl;
-			return;
+void Client::PollIncomingMessages()
+{
+	if (m_socket == INVALID_SOCKET) return;
+
+	char recvbuf[1024];
+	int recvbuflen = 1024;
+	sockaddr_in fromAddr;
+	int fromAddrSize = sizeof(fromAddr);
+
+	while (true) {
+		int iResult = recvfrom(m_socket, recvbuf, recvbuflen, 0, (SOCKADDR*)&fromAddr, &fromAddrSize);
+		if (iResult == SOCKET_ERROR) {
+			if (WSAGetLastError() == WSAEWOULDBLOCK) {
+				// No more data to read
+				break;
+			}
+			else {
+				std::cout << "[ERR] recvfrom failed: " << WSAGetLastError() << std::endl;
+				// Consider the connection failed
+				this->connectionStatus = ConnectionStatus::Failed;
+				Stop();
+				break;
+			}
 		}
 
-		if (pIncomingMsg->GetSize() < sizeof(Packet))
-		{
+		if (iResult < sizeof(Packet)) {
 			std::cout << "[ERR] Packet is malformed (too small)." << std::endl;
-			pIncomingMsg->Release();
-			return;
+			continue;
 		}
 
-		PacketType packetType = ((Packet*)pIncomingMsg->m_pData)->type;
+		PacketType packetType = ((Packet*)recvbuf)->type;
 		Packet* newPacket = nullptr;
 
 		switch (packetType)
 		{
 		case PacketType::ShipUpdate:
-			if (pIncomingMsg->GetSize() >= sizeof(ShipUpdate))
+			if (iResult >= sizeof(ShipUpdate))
 			{
 				newPacket = new ShipUpdate();
-				memcpy(newPacket, pIncomingMsg->m_pData, sizeof(ShipUpdate));
+				memcpy(newPacket, recvbuf, sizeof(ShipUpdate));
 			}
 			break;
 		case PacketType::CreateShip:
-			if (pIncomingMsg->GetSize() >= sizeof(CreateShip))
+			if (iResult >= sizeof(CreateShip))
 			{
 				newPacket = new CreateShip();
-				memcpy(newPacket, pIncomingMsg->m_pData, sizeof(CreateShip));
+				memcpy(newPacket, recvbuf, sizeof(CreateShip));
 			}
 			break;
 		case PacketType::DeleteShip:
-			if (pIncomingMsg->GetSize() >= sizeof(DeleteShip))
+			if (iResult >= sizeof(DeleteShip))
 			{
 				newPacket = new DeleteShip();
-				memcpy(newPacket, pIncomingMsg->m_pData, sizeof(DeleteShip));
+				memcpy(newPacket, recvbuf, sizeof(DeleteShip));
 			}
 			break;
 		case PacketType::ConnectAcknowledge:
-			if (pIncomingMsg->GetSize() >= sizeof(ConnectAcknowledge))
+			if (iResult >= sizeof(ConnectAcknowledge))
 			{
 				newPacket = new ConnectAcknowledge();
-				memcpy(newPacket, pIncomingMsg->m_pData, sizeof(ConnectAcknowledge));
+				memcpy(newPacket, recvbuf, sizeof(ConnectAcknowledge));
+				this->connectionStatus = ConnectionStatus::Connected;
+				std::cout << "[INF] Connection Acknowledged by server!" << std::endl;
 			}
 			break;
 		default:
@@ -155,99 +155,23 @@ void Client::Reconnect()
 		{
 			std::cout << "[ERR] Packet is malformed (size mismatch or unknown type)." << std::endl;
 		}
-
-		pIncomingMsg->Release();
 	}
+}
 
-	void Client::OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo)
-	{
-		assert(pInfo->m_hConn == m_hConnection || m_hConnection == k_HSteamNetConnection_Invalid);
+void Client::SendPacket(Packet* message)
+{
+	if (m_socket == INVALID_SOCKET) return;
 
-		// What's the state of the connection?
-		switch (pInfo->m_info.m_eState)
-		{
-		case k_ESteamNetworkingConnectionState_None:
-			// NOTE: We will get callbacks here when we destroy connections.  You can ignore these.
-			break;
-
-		case k_ESteamNetworkingConnectionState_ClosedByPeer:
-		case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
-		{
-			this->connectionStatus = ConnectionStatus::Failed;
-
-			// Print an appropriate message
-			if (pInfo->m_eOldState == k_ESteamNetworkingConnectionState_Connecting)
-			{
-				// Note: we could distinguish between a timeout, a rejected connection,
-				// or some other transport problem.
-				std::cout << "We sought the remote host, yet our efforts were met with defeat.  " << pInfo->m_info.m_szEndDebug << std::endl;
-			}
-			else if (pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally)
-			{
-				std::cout << "Alas, troubles beset us; we have lost contact with the host.  " << pInfo->m_info.m_szEndDebug << std::endl;
-			}
-			else
-			{
-				// NOTE: We could check the reason code for a normal disconnection
-				std::cout << "The host hath bidden us farewell.  " << pInfo->m_info.m_szEndDebug << std::endl;
-			}
-
-			// Clean up the connection.  This is important!
-			// The connection is "closed" in the network sense, but
-			// it has not been destroyed.  We must close it on our end, too
-			// to finish up.  The reason information do not matter in this case,
-			// and we cannot linger because it's already closed on the other end,
-			// so we just pass 0's.
-			m_pInterface->CloseConnection(pInfo->m_hConn, 0, nullptr, false);
-			m_hConnection = k_HSteamNetConnection_Invalid;
-			break;
-		}
-
-		case k_ESteamNetworkingConnectionState_Connecting:
-			// We will get this callback when we start connecting.
-			// We can ignore this.
-			break;
-
-		case k_ESteamNetworkingConnectionState_Connected:
-			std::cout << "[INF] Connected to server!" << std::endl;
-			this->connectionStatus = ConnectionStatus::Connected;
-			break;
-
-		default:
-			// Silences -Wswitch
-			break;
-		}
+	int iResult = sendto(m_socket, (const char*)message, message->size, 0, (SOCKADDR*)&m_serverAddr, sizeof(m_serverAddr));
+	if (iResult == SOCKET_ERROR) {
+		std::cout << "[ERR] sendto failed: " << WSAGetLastError() << std::endl;
 	}
+}
 
-	static void SteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t* pInfo)
-	{
-		s_pCallbackInstance->OnSteamNetConnectionStatusChanged(pInfo);
-	}
-
-	void Client::PollConnectionStateChanges()
-	{
-		s_pCallbackInstance = this;
-		m_pInterface->RunCallbacks();
-	}
-
-	void Client::SendPacket(Packet* message, const int transferType)
-	{
-		/*void* msg = malloc(message->size() + sizeof(message_header<PacketType>));
-		memcpy(msg, message, sizeof(message_header<PacketType>));
-		unsigned char* bytePtr = reinterpret_cast<unsigned char*>(msg);
-		bytePtr += sizeof(message_header<PacketType>);
-		memcpy(bytePtr, message->body.data(), message->size());
-		m_pInterface->SendMessageToConnection(m_hConnection, msg, message->size() + sizeof(message_header<PacketType>), transferType, nullptr);*/
-
-		m_pInterface->SendMessageToConnection(m_hConnection, message, message->size, transferType, nullptr);
-	}
-
-	void Client::SendText(const std::string text, const int transferType) {
-		if (m_hConnection == k_HSteamNetConnection_Invalid) {
-			return;
-		}
-
-		m_pInterface->SendMessageToConnection(m_hConnection, text.c_str(), (uint32)text.length(), transferType, nullptr);
-	}
+void Client::SendText(const std::string text) {
+	// This function is not part of the core protocol, so we can leave it unimplemented for now
+	// or implement a specific packet type for it if needed.
+	std::cout << "[WARN] SendText is not implemented in pure UDP mode." << std::endl;
+}
 
 
