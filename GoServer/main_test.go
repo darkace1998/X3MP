@@ -63,7 +63,7 @@ func TestHandleConnect_ExistingShipBroadcast(t *testing.T) {
 	existingShipID := int32(10)
 	server.universe.Entities[existingShipID] = &game.Entity{
 		Model:     5,
-		NetOwnerID: -1, // No owner
+		NetOwnerID: NoOwnerID, // No owner
 		PosX:      1000,
 		PosY:      2000,
 		PosZ:      3000,
