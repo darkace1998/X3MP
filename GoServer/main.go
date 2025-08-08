@@ -131,7 +131,7 @@ func (s *Server) handleConnect(addr *net.UDPAddr, data []byte) {
 			Header: network.PacketHeader{Type: network.CreateShip, Size: uint32(68)},
 			ShipID: existingShipID,
 			Model:  entity.Model,
-			Owner:	entity.NetOwnerID,
+			Owner:   entity.NetOwnerID,
 			// TODO: Fill in position data if available
 		}
 		s.sendPacket(addr, &createShipPkt)
