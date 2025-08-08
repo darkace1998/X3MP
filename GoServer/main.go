@@ -12,6 +12,7 @@ import (
 
 const (
 	Port = 13337
+	NoOwnerID = -1
 )
 
 // Client represents a connected player.
@@ -101,8 +102,8 @@ func (s *Server) handleConnect(addr *net.UDPAddr, data []byte) {
 		return
 	}
 
-	s.ClientsMutex.Lock()
-	defer s.ClientsMutex.Unlock()
+	s.clientsMutex.Lock()
+	defer s.clientsMutex.Unlock()
 
 	// Create and store the new client
 	newClientID := s.nextClientID
@@ -177,9 +178,9 @@ func (s *Server) handleShipUpdate(addr *net.UDPAddr, data []byte) {
 	// Update the entity in our universe
 	if entity, ok := s.universe.GetEntity(updatePkt.ShipID); ok {
 		// Basic validation: does the sender own this ship?
-		s.ClientsMutex.RLock()
+		s.clientsMutex.RLock()
 		client, clientOk := s.clients[addr.String()]
-		s.ClientsMutex.RUnlock()
+		s.clientsMutex.RUnlock()
 		if clientOk && client.ClientID == entity.NetOwnerID {
 			entity.PosX = updatePkt.PosX
 			entity.PosY = updatePkt.PosY
@@ -219,8 +220,8 @@ func (s *Server) broadcastPacket(pkt interface{}, exceptAddr string) {
 		return
 	}
 
-	s.ClientsMutex.RLock()
-	defer s.ClientsMutex.RUnlock()
+	s.clientsMutex.RLock()
+	defer s.clientsMutex.RUnlock()
 	for addrStr, client := range s.clients {
 		if addrStr == exceptAddr {
 			continue

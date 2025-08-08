@@ -1,5 +1,7 @@
 package game
 
+import "sync"
+
 // Entity represents an object in the game world, like a ship.
 // The fields are based on the C++ Entity and packet structures.
 type Entity struct {
@@ -23,8 +25,6 @@ type Entity struct {
 	LookAtY int32
 	LookAtZ int32
 }
-
-import "sync"
 
 // Universe holds the entire state of the game world.
 type Universe struct {
