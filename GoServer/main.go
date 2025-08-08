@@ -25,7 +25,7 @@ type Client struct {
 type Server struct {
 	conn         *net.UDPConn
 	clients      map[string]*Client // Map of address string to client
-	ClientsMutex sync.RWMutex
+	clientsMutex sync.RWMutex
 	universe     *game.Universe
 	nextClientID int32
 }
