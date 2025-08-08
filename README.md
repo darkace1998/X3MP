@@ -1,17 +1,30 @@
-# X3MP
+# X3: Multiplayer (X3MP)
 
-This is an very very early stage multiplayer mod for the Game X3: Albion Prelude.
-It isn't very playable nor stable.
+X3MP is an experimental, open-source multiplayer mod for the game **X3: Albion Prelude**.
 
-## Server Architecture
+## Project Status
 
-The original C++ server in the `Server/` directory has been deprecated. A new, pure Go server is now located in the `GoServer/` directory. This new server uses a standard UDP networking protocol and does not rely on Steam Networking.
+**Warning:** This mod is in a very early stage of development. It is not stable, feature-complete, or suitable for a normal gameplay experience. Expect bugs, crashes, and missing features.
 
-As part of this change, the C++ client in the `Client/` directory has been modified to use standard UDP sockets (via Winsock) instead of Steam Networking, allowing it to communicate with the new Go server.
+## Architecture
 
-For instructions on how to build and run the new server, please see the `GoServer/README.md` file.
+The mod uses a client-server architecture.
+-   The **Client** is a DLL that is injected into the game to add multiplayer functionality.
+-   The **Server** is a dedicated, standalone application that manages game state and synchronizes clients.
 
-# How to use
+### The Go Server
 
-Please check out this thread on the Egosoft forum:
-https://forum.egosoft.com/viewtopic.php?f=94&t=436927
+The dedicated server is written in pure Go and is located in the `GoServer/` directory. It uses a standard UDP-based protocol for communication.
+
+For instructions on how to build and run the server, see the [GoServer/README.md](GoServer/README.md) file.
+
+### The C++ Client
+
+The client is a C++ DLL that hooks into the X3 game engine. It is located in the `Client/` directory.
+
+For instructions on how to build the client, see the [Client/README.md](Client/README.md) file.
+
+## How to Use
+
+For more information on the project's history, installation, and community discussion, please visit the official thread on the Egosoft forums:
+[https://forum.egosoft.com/viewtopic.php?f=94&t=436927](https://forum.egosoft.com/viewtopic.php?f=94&t=436927)
