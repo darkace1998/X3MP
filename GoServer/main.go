@@ -132,7 +132,20 @@ func (s *Server) handleConnect(addr *net.UDPAddr, data []byte) {
 			ShipID: existingShipID,
 			Model:  entity.Model,
 			Owner:   entity.NetOwnerID,
-			// TODO: Fill in position data if available
+			PosX:    entity.PosX,
+			PosY:    entity.PosY,
+			PosZ:    entity.PosZ,
+			RotX:    entity.RotX,
+			RotY:    entity.RotY,
+			RotZ:    entity.RotZ,
+			RotW:    entity.RotW,
+			UpX:     entity.UpX,
+			UpY:     entity.UpY,
+			UpZ:     entity.UpZ,
+			UpW:     entity.UpW,
+			LookAtX: entity.LookAtX,
+			LookAtY: entity.LookAtY,
+			LookAtZ: entity.LookAtZ,
 		}
 		s.sendPacket(addr, &createShipPkt)
 	}
