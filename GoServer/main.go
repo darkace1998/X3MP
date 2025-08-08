@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	Port = 13337
+	Port      = 13337
 	NoOwnerID = -1
 )
 
@@ -38,8 +38,8 @@ func NewServer() *Server {
 	universe.CreateShip(22, -1) // model 22, no owner
 
 	return &Server{
-		clients:  make(map[string]*Client),
-		universe: universe,
+		clients:      make(map[string]*Client),
+		universe:     universe,
 		nextClientID: 0,
 	}
 }
@@ -90,7 +90,9 @@ func (s *Server) Listen() error {
 // Stop gracefully shuts down the server by closing the connection.
 func (s *Server) Stop() {
 	if s.conn != nil {
-		s.conn.Close()
+		if err := s.conn.Close(); err != nil {
+			log.Printf("Error closing connection: %v", err)
+		}
 	}
 }
 
@@ -136,9 +138,9 @@ func (s *Server) handleConnect(addr *net.UDPAddr, data []byte) {
 			continue
 		}
 		createShipPkt := network.CreateShipPacket{
-			Header: network.PacketHeader{Type: network.CreateShip, Size: uint32(68)},
-			ShipID: existingShipID,
-			Model:  entity.Model,
+			Header:  network.PacketHeader{Type: network.CreateShip, Size: uint32(68)},
+			ShipID:  existingShipID,
+			Model:   entity.Model,
 			Owner:   entity.NetOwnerID,
 			PosX:    entity.PosX,
 			PosY:    entity.PosY,
@@ -203,14 +205,16 @@ func (s *Server) handleShipUpdate(addr *net.UDPAddr, data []byte) {
 	s.broadcastPacket(&updatePkt, addr.String())
 }
 
-
 func (s *Server) sendPacket(addr *net.UDPAddr, pkt interface{}) {
 	bytes, err := network.ToBytes(pkt)
 	if err != nil {
 		log.Printf("Error serializing packet for sending: %v", err)
 		return
 	}
-	s.conn.WriteToUDP(bytes, addr)
+	_, err = s.conn.WriteToUDP(bytes, addr)
+	if err != nil {
+		log.Printf("Error sending packet to %s: %v", addr, err)
+	}
 }
 
 func (s *Server) broadcastPacket(pkt interface{}, exceptAddr string) {
@@ -226,7 +230,10 @@ func (s *Server) broadcastPacket(pkt interface{}, exceptAddr string) {
 		if addrStr == exceptAddr {
 			continue
 		}
-		s.conn.WriteToUDP(bytes, client.Addr)
+		_, err = s.conn.WriteToUDP(bytes, client.Addr)
+		if err != nil {
+			log.Printf("Error broadcasting packet to %s: %v", client.Addr, err)
+		}
 	}
 }
 

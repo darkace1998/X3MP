@@ -1,0 +1,199 @@
+name: Client Lint and Security
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: 
+      - 'Client/**'
+      - '.github/workflows/client-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths: 
+      - 'Client/**'
+      - '.github/workflows/client-ci.yml'
+
+jobs:
+  cpp-analysis:
+    name: C++ Static Analysis and Security
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install analysis tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck clang-tidy
+
+    - name: Verify tool versions
+      working-directory: Client
+      run: |
+        cppcheck --version
+        clang-tidy --version
+
+    - name: Run cppcheck analysis
+      working-directory: Client
+      run: |
+        mkdir -p reports
+        cppcheck \
+          --project=cppcheck.xml \
+          --enable=all \
+          --inconclusive \
+          --force \
+          --template='{file}:{line}:{column}: {severity}: {message} [{id}]' \
+          --xml \
+          --xml-version=2 \
+          --output-file=reports/cppcheck-report.xml \
+          . 2>&1 | tee reports/cppcheck-output.txt
+
+    - name: Run security analysis
+      working-directory: Client
+      run: |
+        # Run cppcheck with security focus
+        cppcheck \
+          --enable=warning,style,performance,portability,information \
+          --inconclusive \
+          --force \
+          --template='{file}:{line}:{column}: {severity}: {message} [{id}]' \
+          --xml \
+          --xml-version=2 \
+          --output-file=reports/security-report.xml \
+          . 2>&1 | tee reports/security-output.txt
+        
+        # Check for potentially unsafe functions
+        echo "=== Security Pattern Analysis ===" > reports/security-patterns.txt
+        for func in strcpy strcat sprintf gets scanf strncpy strncat; do
+          if grep -rn "$func" --include="*.cpp" --include="*.h" . >> reports/security-patterns.txt 2>/dev/null; then
+            echo "::warning::Found potentially unsafe function: $func"
+          fi
+        done
+        
+        # Check for buffer overflow patterns
+        if grep -rn "char.*\[" --include="*.cpp" --include="*.h" . | grep -v "const" >> reports/security-patterns.txt; then
+          echo "::warning::Found fixed-size buffers that may be vulnerable to overflow"
+        fi
+
+    - name: Run clang-tidy analysis
+      working-directory: Client
+      run: |
+        # Create basic compile_commands.json for clang-tidy
+        cat > compile_commands.json << 'EOF'
+        [
+            {
+                "directory": ".",
+                "command": "clang++ -I. -DWIN32 -D_WINDOWS -D_USRDLL -D_WINDLL -std=c++17 client.cpp",
+                "file": "client.cpp"
+            }
+        ]
+        EOF
+        
+        # List of C++ source files
+        cpp_files=(
+          "client.cpp"
+          "Chatbox.cpp"
+          "Console.cpp"
+          "Mod.cpp"
+          "Renderer.cpp"
+          "X3Functions.cpp"
+          "X3Util.cpp"
+          "directx.cpp"
+          "mem.cpp"
+          "settings.cpp"
+          "dllmain.cpp"
+        )
+        
+        # Run clang-tidy on each file
+        echo "" > reports/clang-tidy-report.txt
+        for file in "${cpp_files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "Analyzing $file with clang-tidy..."
+            clang-tidy "$file" \
+              --checks='-*,readability-*,performance-*,modernize-*,bugprone-*,clang-analyzer-*,cppcoreguidelines-*,hicpp-*,cert-*,misc-*' \
+              --format-style=file \
+              --header-filter='.*' \
+              >> reports/clang-tidy-report.txt 2>&1 || true
+          fi
+        done
+
+    - name: Check for critical issues
+      working-directory: Client
+      run: |
+        # Check if cppcheck found any errors
+        if grep -q "error:" reports/cppcheck-output.txt; then
+          echo "::error::cppcheck found critical errors"
+          grep "error:" reports/cppcheck-output.txt
+          exit 1
+        fi
+        
+        # Check for high-severity security issues
+        if grep -qi "buffer overflow\|use after free\|null pointer" reports/security-output.txt; then
+          echo "::error::Found high-severity security issues"
+          grep -i "buffer overflow\|use after free\|null pointer" reports/security-output.txt
+          exit 1
+        fi
+
+    - name: Upload analysis reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: cpp-analysis-reports
+        path: |
+          Client/reports/
+        retention-days: 7
+
+    - name: Generate summary
+      if: always()
+      working-directory: Client
+      run: |
+        echo "## C++ Analysis Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f reports/cppcheck-output.txt ]; then
+          total_issues=$(grep -c ":" reports/cppcheck-output.txt || echo "0")
+          errors=$(grep -c "error:" reports/cppcheck-output.txt || echo "0")
+          warnings=$(grep -c "warning:" reports/cppcheck-output.txt || echo "0")
+          
+          echo "### Cppcheck Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Total issues: $total_issues" >> $GITHUB_STEP_SUMMARY
+          echo "- Errors: $errors" >> $GITHUB_STEP_SUMMARY
+          echo "- Warnings: $warnings" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f reports/security-patterns.txt ]; then
+          unsafe_funcs=$(grep -c "potentially unsafe function" reports/security-patterns.txt || echo "0")
+          echo "### Security Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "- Potentially unsafe function calls: $unsafe_funcs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "Analysis reports are available in the artifacts."
+
+  windows-analysis:
+    name: Windows C++ Analysis  
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install cppcheck
+      run: |
+        choco install cppcheck --yes
+        
+    - name: Run Windows analysis
+      working-directory: Client
+      shell: powershell
+      run: |
+        # Run the PowerShell analysis script
+        .\lint-and-security.ps1
+
+    - name: Upload Windows reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: windows-cpp-reports
+        path: |
+          Client/reports/
+        retention-days: 7
