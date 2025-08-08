@@ -101,7 +101,12 @@ func TestHandleConnect_ExistingShipBroadcast(t *testing.T) {
 		// We expect a ConnectAcknowledge packet first, then a CreateShip packet
 		// for the existing ship.
 		buf := make([]byte, 1024)
-		clientConn.ReadFromUDP(buf) // Read and discard ConnectAcknowledge
+		_, _, err := clientConn.ReadFromUDP(buf) // Read and discard ConnectAcknowledge
+		if err != nil {
+			t.Logf("Read error (ConnectAcknowledge): %v", err)
+			close(readFinished)
+			return
+		}
 
 		n, _, err := clientConn.ReadFromUDP(buf)
 		if err != nil {
