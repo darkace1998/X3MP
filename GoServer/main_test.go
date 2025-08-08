@@ -51,7 +51,7 @@ func TestHandleConnect(t *testing.T) {
 	// 2. Create a fake client connection
 	// Create a fake connect packet
 	connectPkt := network.ConnectPacket{
-		Header: network.PacketHeader{Type: network.Connect, Size: 74},
+		Header: network.PacketHeader{Type: network.Connect, Size: uint32(unsafe.Sizeof(network.ConnectPacket{}))},
 		Model:  99,
 	}
 	copy(connectPkt.Name[:], "TestHandleConnect")
