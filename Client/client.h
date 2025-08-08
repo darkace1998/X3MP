@@ -1,5 +1,11 @@
 #pragma once
 
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment (lib, "Ws2_32.lib")
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -15,11 +21,6 @@
 #include <map>
 #include <cctype>
 
-#include <GameNetworkingSockets/steam/steamnetworkingsockets.h>
-#include <GameNetworkingSockets/steam/isteamnetworkingutils.h>
-#ifndef STEAMNETWORKINGSOCKETS_OPENSOURCE
-#include <GameNetworkingSockets/steam/steam_api.h>
-#endif
 #include <net_message.h>
 #include <net_packets.h>
 
@@ -27,12 +28,8 @@ using namespace x3::net;
 
 const uint16 DEFAULT_SERVER_PORT = 13337;
 
-void DebugOutput(ESteamNetworkingSocketsDebugOutputType eType, const char* pszMsg);
-void InitSteamDatagramConnectionSockets();
-void ShutdownSteamDatagramConnectionSockets();
-void SteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t* pInfo);
-
-static SteamNetworkingMicroseconds g_logTimeZero;
+bool InitWinsock();
+void ShutdownWinsock();
 
 enum class ConnectionStatus
 {
@@ -50,21 +47,15 @@ public:
 
 	void Run(const char* ip, unsigned short port);
 	void Stop();
-	void Reconnect();
 	
-	void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo);
-
-	void SendPacket(Packet* message, const int transferType = k_nSteamNetworkingSend_Reliable);
-	void SendText(const std::string text, const int transferType = k_nSteamNetworkingSend_Reliable);
+	void SendPacket(Packet* message);
+	void SendText(const std::string text);
 
 private:
 	bool m_bRunning = false;
-	std::string m_serverIp;
-	unsigned short m_serverPort;
-	HSteamNetConnection m_hConnection = 0;
-	ISteamNetworkingSockets* m_pInterface = 0;
+	SOCKET m_socket = INVALID_SOCKET;
+	sockaddr_in m_serverAddr;
 
-	void Connect();
+	void Connect(const char* ip, unsigned short port);
 	void PollIncomingMessages();
-	void PollConnectionStateChanges();
 };
