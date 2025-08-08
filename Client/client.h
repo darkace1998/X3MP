@@ -34,16 +34,23 @@ void SteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCall
 
 static SteamNetworkingMicroseconds g_logTimeZero;
 
+enum class ConnectionStatus
+{
+	Disconnected,
+	Connecting,
+	Connected,
+	Failed
+};
+
 class Client
 {
-	bool g_bQuit = false;
-
 public:
-	bool isConnected = false;
+	ConnectionStatus connectionStatus = ConnectionStatus::Disconnected;
 	std::queue<x3::net::Packet*> receivedPackets;
 
 	void Run(const char* ip, unsigned short port);
 	void Stop();
+	void Reconnect();
 	
 	void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo);
 
@@ -51,11 +58,13 @@ public:
 	void SendText(const std::string text, const int transferType = k_nSteamNetworkingSend_Reliable);
 
 private:
+	bool m_bRunning = false;
+	std::string m_serverIp;
+	unsigned short m_serverPort;
 	HSteamNetConnection m_hConnection = 0;
 	ISteamNetworkingSockets* m_pInterface = 0;
 
+	void Connect();
 	void PollIncomingMessages();
-	
-	
 	void PollConnectionStateChanges();
 };
