@@ -117,7 +117,7 @@ DWORD WINAPI ModThread(HMODULE hModule)
     chatbox->SendChatMessage("      X3MP started...", 255, 180, 180, 180);
     chatbox->SendChatMessage("==================================================================", 255, 180, 180, 180);
 
-    x3mp::Settings* xmlSettings = new x3mp::Settings();
+    auto xmlSettings = std::make_unique<x3mp::Settings>();
     if (!xmlSettings->Load() || xmlSettings->username.length() > 64)
     {
         //close the client
@@ -254,6 +254,7 @@ DWORD WINAPI ModThread(HMODULE hModule)
         while (client.isConnected && !client.receivedPackets.empty())
         {
             Packet* packet = client.receivedPackets.front();
+            client.receivedPackets.pop();
 
             if (packet->type == PacketType::ShipUpdate)
             {
@@ -279,11 +280,11 @@ DWORD WINAPI ModThread(HMODULE hModule)
                 else
                     console.Log(std::string("Ship Update for invalid ship! ShipID: ") + std::to_string(updatePacket->ShipID), x3::MessageLevel::Error);
             }
-            if (packet->type == PacketType::CreateShip)
+            else if (packet->type == PacketType::CreateShip)
             {
                 if (ownShipID == -1)
-                { 
-                    client.receivedPackets.pop();
+                {
+                    delete packet;
                     continue;
                 }
                 CreateShip* createPacket = (x3::net::CreateShip*)packet;
@@ -309,7 +310,7 @@ DWORD WINAPI ModThread(HMODULE hModule)
                 console.Log(std::string("Creating ship at position: ") + std::to_string(createPacket->PosX) + std::string("|..."), x3::MessageLevel::Debug);
             }
 
-            if (packet->type == PacketType::DeleteShip)
+            else if (packet->type == PacketType::DeleteShip)
             {
                 DeleteShip* deletePacket = (x3::net::DeleteShip*)packet;
                 if (entities[deletePacket->ShipID] != nullptr && x3::util::CheckShipPointer(entities[deletePacket->ShipID], entities))
@@ -319,7 +320,7 @@ DWORD WINAPI ModThread(HMODULE hModule)
                     entities[deletePacket->ShipID] = nullptr;
                 }
             }
-            if (packet->type == PacketType::CreateStar)
+            else if (packet->type == PacketType::CreateStar)
             {
                 CreateStar* createPacket = (x3::net::CreateStar*)packet;
                 sectorPtr = (x3::Sector*)(uintptr_t)sectorBasePtr->EntityManager->EntityList; // Has to be executed before ship spawn and after sector creation
@@ -330,7 +331,7 @@ DWORD WINAPI ModThread(HMODULE hModule)
                 entity->WorldData->PosY = createPacket->PosY;
                 entity->WorldData->PosZ = createPacket->PosZ;
             }
-            if (packet->type == PacketType::ConnectAcknowledge)
+            else if (packet->type == PacketType::ConnectAcknowledge)
             {
                 ConnectAcknowledge* ackPacket = (x3::net::ConnectAcknowledge*)packet;
                 clientID = ackPacket->ClientID;
@@ -341,13 +342,13 @@ DWORD WINAPI ModThread(HMODULE hModule)
                 ownShipID = ackPacket->ShipID;
                 entities[ackPacket->ShipID] = ownShip;
             }
-            if (packet->type == PacketType::ChatMessage)
+            else if (packet->type == PacketType::ChatMessage)
             {
                 x3::net::ChatMessage* chatPacket = (x3::net::ChatMessage*)packet;
                 chatbox->SendChatMessage(chatPacket->Message, chatPacket->A, chatPacket->R, chatPacket->G, chatPacket->B);
             }
 
-            client.receivedPackets.pop();
+            delete packet;
         }
 
         Sleep(20);
