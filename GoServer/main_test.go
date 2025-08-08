@@ -15,7 +15,7 @@ func TestPacketSerialization(t *testing.T) {
 	originalPkt := network.ConnectPacket{
 		Header: network.PacketHeader{
 			Type: network.Connect,
-			Size: uint32(74), // Manually calculated size for this test
+			Size: uint32(unsafe.Sizeof(network.ConnectPacket{})), // Dynamically calculated size
 		},
 		Model: 123,
 	}
