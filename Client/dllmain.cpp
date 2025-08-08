@@ -186,7 +186,7 @@ DWORD WINAPI ModThread(HMODULE hModule)
 
         //CreateInSectorEntity(entity, 0x1); //PBK Schuss
         //SetSimulatorParam(0, 0, 0x96, "NotifyIntoLaserRange", 1, 0); //Ziel ist nun in Feuerreichweite
-        //SetSimulatorParam(0, 0, 0x96, "NotifyOutofLaserRange", 1, 0); //Ziel verlässt Feuerreichweite
+        //SetSimulatorParam(0, 0, 0x96, "NotifyOutofLaserRange", 1, 0); //Ziel verlÃ¤sst Feuerreichweite
         //SetSimulatorParam(0, 0, 0x96, "NotifyTargetLock", 1, 2); //
         //SetSimulatorParam(8, 0, 0x96, "NotifyDockingAbort", 1, 1); //Andockvorgang abgebrochen
         //SetSimulatorParam(8, 0, SomeAddressOrCounter, "CanWarp", 1, 1); //Called when entering jumpgate
@@ -254,7 +254,6 @@ DWORD WINAPI ModThread(HMODULE hModule)
         while (client.isConnected && !client.receivedPackets.empty())
         {
             Packet* packet = client.receivedPackets.front();
-            client.receivedPackets.pop();
 
             if (packet->type == PacketType::ShipUpdate)
             {
