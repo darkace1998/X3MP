@@ -180,13 +180,27 @@ jobs:
 
     - name: Install cppcheck
       run: |
+        Write-Host "Installing cppcheck via chocolatey..."
         choco install cppcheck --yes
-        
+        Write-Host "Verifying cppcheck installation..."
+        cppcheck --version
+      shell: powershell
+
     - name: Run Windows analysis
       working-directory: Client
       shell: powershell
       run: |
+        # Set execution policy for the current process
+        Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+        
+        # Show environment info
+        Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+        Write-Host "Current directory: $(Get-Location)"
+        Write-Host "Files in directory:"
+        Get-ChildItem | Format-Table Name, Length
+        
         # Run the PowerShell analysis script
+        Write-Host "Running lint and security analysis script..."
         .\lint-and-security.ps1
 
     - name: Upload Windows reports
