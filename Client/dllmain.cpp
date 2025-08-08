@@ -283,7 +283,6 @@ DWORD WINAPI ModThread(HMODULE hModule)
             {
                 if (ownShipID == -1)
                 {
-                    delete packet;
                     continue;
                 }
                 CreateShip* createPacket = (x3::net::CreateShip*)packet;
