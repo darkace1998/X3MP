@@ -180,9 +180,19 @@ func TestHandleConnect(t *testing.T) {
 	go func() {
 		buf := make([]byte, 1024)
 		// Expect ConnectAcknowledge
-		conn.ReadFromUDP(buf)
+		_, _, err := conn.ReadFromUDP(buf)
+		if err != nil {
+			t.Errorf("Failed to read ConnectAcknowledge packet: %v", err)
+			readFinished <- true
+			return
+		}
 		// Expect CreateShip for initial ship
-		conn.ReadFromUDP(buf)
+		_, _, err = conn.ReadFromUDP(buf)
+		if err != nil {
+			t.Errorf("Failed to read CreateShip packet: %v", err)
+			readFinished <- true
+			return
+		}
 		readFinished <- true
 	}()
 
