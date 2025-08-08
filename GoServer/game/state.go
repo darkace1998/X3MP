@@ -24,9 +24,12 @@ type Entity struct {
 	LookAtZ int32
 }
 
+import "sync"
+
 // Universe holds the entire state of the game world.
 type Universe struct {
 	Entities map[int32]*Entity // Map of ShipID to Entity
+	mu       sync.RWMutex
 }
 
 // NewUniverse creates a new, empty universe.
@@ -38,6 +41,9 @@ func NewUniverse() *Universe {
 
 // CreateShip finds the next available ShipID, creates a ship, and returns its ID.
 func (u *Universe) CreateShip(model int32, ownerClientID int32) (int32, *Entity) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
 	// Find the next available ID.
 	// In the C++ code, it iterates from 0 to 65535.
 	// A map makes this slightly different, but we can replicate the logic.
@@ -59,5 +65,27 @@ func (u *Universe) CreateShip(model int32, ownerClientID int32) (int32, *Entity)
 
 // DeleteShip removes a ship from the universe.
 func (u *Universe) DeleteShip(shipID int32) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
 	delete(u.Entities, shipID)
+}
+
+// GetEntity safely retrieves an entity from the universe.
+func (u *Universe) GetEntity(shipID int32) (*Entity, bool) {
+	u.mu.RLock()
+	defer u.mu.RUnlock()
+	entity, ok := u.Entities[shipID]
+	return entity, ok
+}
+
+// GetAllEntities returns a copy of all entities in the universe for safe iteration.
+func (u *Universe) GetAllEntities() map[int32]*Entity {
+	u.mu.RLock()
+	defer u.mu.RUnlock()
+	// Return a copy to prevent race conditions on the map itself during iteration
+	entitiesCopy := make(map[int32]*Entity)
+	for id, entity := range u.Entities {
+		entitiesCopy[id] = entity
+	}
+	return entitiesCopy
 }

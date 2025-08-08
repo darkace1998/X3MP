@@ -25,7 +25,7 @@ type Client struct {
 type Server struct {
 	conn         *net.UDPConn
 	clients      map[string]*Client // Map of address string to client
-	clientsMutex sync.RWMutex
+	ClientsMutex sync.RWMutex
 	universe     *game.Universe
 	nextClientID int32
 }
@@ -86,6 +86,13 @@ func (s *Server) Listen() error {
 	}
 }
 
+// Stop gracefully shuts down the server by closing the connection.
+func (s *Server) Stop() {
+	if s.conn != nil {
+		s.conn.Close()
+	}
+}
+
 func (s *Server) handleConnect(addr *net.UDPAddr, data []byte) {
 	log.Printf("Handling Connect from %s", addr.String())
 	var connectPkt network.ConnectPacket
@@ -94,8 +101,8 @@ func (s *Server) handleConnect(addr *net.UDPAddr, data []byte) {
 		return
 	}
 
-	s.clientsMutex.Lock()
-	defer s.clientsMutex.Unlock()
+	s.ClientsMutex.Lock()
+	defer s.ClientsMutex.Unlock()
 
 	// Create and store the new client
 	newClientID := s.nextClientID
@@ -121,7 +128,7 @@ func (s *Server) handleConnect(addr *net.UDPAddr, data []byte) {
 	s.sendPacket(addr, &ackPkt)
 
 	// Send all existing ships to the new client
-	for existingShipID, entity := range s.universe.Entities {
+	for existingShipID, entity := range s.universe.GetAllEntities() {
 		// The original C++ code doesn't send the newly created ship back to the owner
 		// in this loop, so we replicate that behavior.
 		if existingShipID == shipID {
@@ -155,11 +162,11 @@ func (s *Server) handleShipUpdate(addr *net.UDPAddr, data []byte) {
 	}
 
 	// Update the entity in our universe
-	if entity, ok := s.universe.Entities[updatePkt.ShipID]; ok {
+	if entity, ok := s.universe.GetEntity(updatePkt.ShipID); ok {
 		// Basic validation: does the sender own this ship?
-		s.clientsMutex.RLock()
+		s.ClientsMutex.RLock()
 		client, clientOk := s.clients[addr.String()]
-		s.clientsMutex.RUnlock()
+		s.ClientsMutex.RUnlock()
 		if clientOk && client.ClientID == entity.NetOwnerID {
 			entity.PosX = updatePkt.PosX
 			entity.PosY = updatePkt.PosY
@@ -199,8 +206,8 @@ func (s *Server) broadcastPacket(pkt interface{}, exceptAddr string) {
 		return
 	}
 
-	s.clientsMutex.RLock()
-	defer s.clientsMutex.RUnlock()
+	s.ClientsMutex.RLock()
+	defer s.ClientsMutex.RUnlock()
 	for addrStr, client := range s.clients {
 		if addrStr == exceptAddr {
 			continue
