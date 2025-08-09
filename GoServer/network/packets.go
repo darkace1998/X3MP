@@ -27,7 +27,6 @@ type PacketHeader struct {
 	Size uint32
 }
 
-
 // ShipUpdatePacket corresponds to the C++ ShipUpdate struct.
 type ShipUpdatePacket struct {
 	Header  PacketHeader
@@ -51,8 +50,8 @@ type ShipUpdatePacket struct {
 // ConnectPacket corresponds to the C++ Connect struct.
 type ConnectPacket struct {
 	Header PacketHeader
-	Model int16
-	Name  [64]byte
+	Model  int16
+	Name   [64]byte
 }
 
 // ConnectAcknowledgePacket corresponds to the C++ ConnectAcknowledge struct.

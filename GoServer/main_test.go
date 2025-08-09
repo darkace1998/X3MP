@@ -5,7 +5,6 @@ import (
 	"net"
 	"reflect"
 	"testing"
- 	"unsafe"
 	"time"
 
 	"x3mp_goserver/game"
@@ -63,11 +62,11 @@ func TestHandleConnect_ExistingShipBroadcast(t *testing.T) {
 	server := NewServer()
 	existingShipID := int32(10)
 	server.universe.Entities[existingShipID] = &game.Entity{
-		Model:     5,
+		Model:      5,
 		NetOwnerID: NoOwnerID, // No owner
-		PosX:      1000,
-		PosY:      2000,
-		PosZ:      3000,
+		PosX:       1000,
+		PosY:       2000,
+		PosZ:       3000,
 	}
 
 	// 2. Create a fake client connection
@@ -94,7 +93,6 @@ func TestHandleConnect_ExistingShipBroadcast(t *testing.T) {
 		t.Fatalf("Failed to listen on UDP for test: %v", err)
 	}
 	defer server.conn.Close()
-
 
 	// 4. Call the handler and read the packets
 	readFinished := make(chan *network.CreateShipPacket)
@@ -207,7 +205,6 @@ func TestHandleConnect(t *testing.T) {
 		t.Fatal("timed out waiting for server to send packets")
 	}
 
-
 	// 5. Assert the results
 	// Check if a new client was added
 	if len(server.clients) != 1 {
@@ -242,9 +239,9 @@ func TestHandleConnect(t *testing.T) {
 
 func TestHandleShipUpdate(t *testing.T) {
 	type testCase struct {
-		name          string
-		initialPosX   int32
-		updatePacket  network.ShipUpdatePacket
+		name         string
+		initialPosX  int32
+		updatePacket network.ShipUpdatePacket
 		expectedPosX int32
 	}
 
@@ -259,7 +256,7 @@ func TestHandleShipUpdate(t *testing.T) {
 		ShipID:   shipID,
 	}
 	server.universe.Entities[shipID] = &game.Entity{
-		Model:     1,
+		Model:      1,
 		NetOwnerID: clientID,
 	}
 

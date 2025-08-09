@@ -179,9 +179,9 @@ func TestServerClientConnection(t *testing.T) {
 	}
 
 	// 7. Also check server state (with mutex to prevent race conditions)
-	server.ClientsMutex.RLock()
+	server.clientsMutex.RLock()
 	clientCount := len(server.clients)
-	server.ClientsMutex.RUnlock()
+	server.clientsMutex.RUnlock()
 	if clientCount != 1 {
 		t.Errorf("Expected 1 client on server, but got %d", clientCount)
 	}

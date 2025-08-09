@@ -1,30 +1,30 @@
 package game
 
+import "sync"
+
 // Entity represents an object in the game world, like a ship.
 // The fields are based on the C++ Entity and packet structures.
 type Entity struct {
-	Model     int32
+	Model      int32
 	NetOwnerID int32 // The ClientID of the player who owns this entity
-	Owner     int32 // In-game owner (not used yet)
+	Owner      int32 // In-game owner (not used yet)
 
 	// Positional and rotational data
-	PosX int32
-	PosY int32
-	PosZ int32
-	RotX int32
-	RotY int32
-	RotZ int32
-	RotW int32
-	UpX  int32
-	UpY  int32
-	UpZ  int32
-	UpW  int32
+	PosX    int32
+	PosY    int32
+	PosZ    int32
+	RotX    int32
+	RotY    int32
+	RotZ    int32
+	RotW    int32
+	UpX     int32
+	UpY     int32
+	UpZ     int32
+	UpW     int32
 	LookAtX int32
 	LookAtY int32
 	LookAtZ int32
 }
-
-import "sync"
 
 // Universe holds the entire state of the game world.
 type Universe struct {
@@ -40,7 +40,7 @@ func NewUniverse() *Universe {
 }
 
 // CreateShip finds the next available ShipID, creates a ship, and returns its ID.
-func (u *Universe) CreateShip(model int32, ownerClientID int32) (int32, *Entity) {
+func (u *Universe) CreateShip(model, ownerClientID int32) (int32, *Entity) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 
@@ -56,7 +56,7 @@ func (u *Universe) CreateShip(model int32, ownerClientID int32) (int32, *Entity)
 	}
 
 	entity := &Entity{
-		Model:     model,
+		Model:      model,
 		NetOwnerID: ownerClientID,
 	}
 	u.Entities[nextID] = entity
