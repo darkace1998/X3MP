@@ -36,16 +36,32 @@ jobs:
       working-directory: Client
       run: |
         mkdir -p reports
-        cppcheck \
-          --project=cppcheck.xml \
-          --enable=all \
-          --inconclusive \
-          --force \
-          --template='{file}:{line}:{column}: {severity}: {message} [{id}]' \
-          --xml \
-          --xml-version=2 \
-          --output-file=reports/cppcheck-report.xml \
-          . 2>&1 | tee reports/cppcheck-output.txt
+        
+        # First try with project file, if that fails, fall back to basic analysis
+        if cppcheck --project=cppcheck.xml --check-config --quiet 2>/dev/null; then
+          echo "Using cppcheck.xml project file"
+          cppcheck \
+            --project=cppcheck.xml \
+            --enable=all \
+            --inconclusive \
+            --force \
+            --template='{file}:{line}:{column}: {severity}: {message} [{id}]' \
+            --xml \
+            --xml-version=2 \
+            --output-file=reports/cppcheck-report.xml \
+            . 2>&1 | tee reports/cppcheck-output.txt
+        else
+          echo "cppcheck.xml not compatible, running without project file"
+          cppcheck \
+            --enable=all \
+            --inconclusive \
+            --force \
+            --template='{file}:{line}:{column}: {severity}: {message} [{id}]' \
+            --xml \
+            --xml-version=2 \
+            --output-file=reports/cppcheck-report.xml \
+            . 2>&1 | tee reports/cppcheck-output.txt
+        fi
 
     - name: Run security analysis
       working-directory: Client
@@ -182,8 +198,10 @@ jobs:
       run: |
         Write-Host "Installing cppcheck via chocolatey..."
         choco install cppcheck --yes
+        Write-Host "Refreshing environment variables..."
+        refreshenv
         Write-Host "Verifying cppcheck installation..."
-        cppcheck --version
+        & "C:\Program Files\Cppcheck\cppcheck.exe" --version
       shell: powershell
 
     - name: Run Windows analysis
@@ -198,6 +216,13 @@ jobs:
         Write-Host "Current directory: $(Get-Location)"
         Write-Host "Files in directory:"
         Get-ChildItem | Format-Table Name, Length
+        
+        # Add cppcheck to PATH for this session
+        $env:PATH += ";C:\Program Files\Cppcheck"
+        Write-Host "Updated PATH: $env:PATH"
+        
+        # Verify cppcheck is available
+        & "C:\Program Files\Cppcheck\cppcheck.exe" --version
         
         # Run the PowerShell analysis script
         Write-Host "Running lint and security analysis script..."

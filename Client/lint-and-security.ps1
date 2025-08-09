@@ -34,16 +34,25 @@ function Write-Error {
 # Check if cppcheck is installed
 function Test-CppCheck {
     try {
+        # Try the full path first (common on Windows)
+        $cppcheckPath = "C:\Program Files\Cppcheck\cppcheck.exe"
+        if (Test-Path $cppcheckPath) {
+            $version = & $cppcheckPath --version 2>$null
+            Write-Success "cppcheck found: $version"
+            return $cppcheckPath
+        }
+        
+        # Fallback to PATH lookup
         $null = Get-Command cppcheck -ErrorAction Stop
         $version = & cppcheck --version 2>$null
         Write-Success "cppcheck found: $version"
-        return $true
+        return "cppcheck"
     }
     catch {
         Write-Error "cppcheck not found. Please install cppcheck."
         Write-Status "Download from: http://cppcheck.sourceforge.net/"
         Write-Status "Or install via chocolatey: choco install cppcheck"
-        return $false
+        return $null
     }
 }
 
@@ -64,17 +73,29 @@ function Test-ClangTidy {
 
 # Run cppcheck analysis
 function Invoke-CppCheck {
+    param($CppCheckPath)
+    
     Write-Status "Running cppcheck static analysis..."
     
     # Create output directory
     New-Item -ItemType Directory -Force -Path "reports" | Out-Null
     
-    # Check if cppcheck.xml exists
+    # Check if cppcheck.xml exists and is valid
     if (-not (Test-Path "cppcheck.xml")) {
         Write-Warning "cppcheck.xml not found, running without project file"
         $projectParam = ""
     } else {
-        $projectParam = "--project=cppcheck.xml"
+        # Test if the project file is valid by doing a dry run
+        try {
+            Write-Status "Testing cppcheck.xml validity..."
+            & $CppCheckPath --project=cppcheck.xml --check-config 2>&1 | Out-Null
+            $projectParam = "--project=cppcheck.xml"
+            Write-Status "Using cppcheck.xml project file"
+        }
+        catch {
+            Write-Warning "cppcheck.xml appears invalid, running without project file"
+            $projectParam = ""
+        }
     }
     
     # Run cppcheck with comprehensive checks
@@ -92,12 +113,13 @@ function Invoke-CppCheck {
         
         if ($projectParam) {
             $cppcheckArgs = @($projectParam) + $cppcheckArgs
+        } else {
+            # Add current directory as source if no project file
+            $cppcheckArgs += "."
         }
         
-        $cppcheckArgs += "."
-        
-        Write-Status "Running: cppcheck $($cppcheckArgs -join ' ')"
-        & cppcheck @cppcheckArgs 2>&1 | Tee-Object -FilePath "reports/cppcheck-output.txt"
+        Write-Status "Running: $CppCheckPath $($cppcheckArgs -join ' ')"
+        & $CppCheckPath @cppcheckArgs 2>&1 | Tee-Object -FilePath "reports/cppcheck-output.txt"
         
         # Check for errors - but don't fail CI for warnings
         $output = Get-Content "reports/cppcheck-output.txt" -ErrorAction SilentlyContinue
@@ -187,6 +209,8 @@ function Invoke-ClangTidy {
 
 # Run security-focused analysis
 function Invoke-SecurityAnalysis {
+    param($CppCheckPath)
+    
     Write-Status "Running security-focused analysis..."
     
     New-Item -ItemType Directory -Force -Path "reports" | Out-Null
@@ -194,7 +218,7 @@ function Invoke-SecurityAnalysis {
     # Run cppcheck with security focus
     Write-Status "Running cppcheck with security checks..."
     try {
-        & cppcheck `
+        & $CppCheckPath `
             --enable=warning,style,performance,portability,information `
             --inconclusive `
             --force `
@@ -248,10 +272,10 @@ function Invoke-Main {
     Write-Status "Starting C++ lint and security analysis for X3MP Client"
     
     # Check for required tools
-    $cppCheckAvailable = Test-CppCheck
+    $cppCheckPath = Test-CppCheck
     $clangTidyAvailable = Test-ClangTidy
     
-    if (-not $cppCheckAvailable) {
+    if (-not $cppCheckPath) {
         Write-Error "No static analysis tools available. Please install cppcheck at minimum."
         Write-Status "This might be a temporary issue with tool installation."
         exit 1
@@ -263,15 +287,15 @@ function Invoke-Main {
     # Run analyses - don't fail CI for analysis warnings
     $issues = 0
     
-    if ($cppCheckAvailable) {
+    if ($cppCheckPath) {
         Write-Status "Running cppcheck analysis..."
-        if (-not (Invoke-CppCheck)) {
+        if (-not (Invoke-CppCheck $cppCheckPath)) {
             $issues++
             Write-Warning "cppcheck found issues, but continuing..."
         }
         
         Write-Status "Running security analysis..."
-        Invoke-SecurityAnalysis | Out-Null
+        Invoke-SecurityAnalysis $cppCheckPath | Out-Null
     }
     
     if ($clangTidyAvailable) {
@@ -317,13 +341,15 @@ if ($Help) {
     exit 0
 }
 elseif ($CppCheck) {
-    if (Test-CppCheck) { Invoke-CppCheck }
+    $cppCheckPath = Test-CppCheck
+    if ($cppCheckPath) { Invoke-CppCheck $cppCheckPath }
 }
 elseif ($ClangTidy) {
     if (Test-ClangTidy) { Invoke-ClangTidy }
 }
 elseif ($Security) {
-    if (Test-CppCheck) { Invoke-SecurityAnalysis }
+    $cppCheckPath = Test-CppCheck
+    if ($cppCheckPath) { Invoke-SecurityAnalysis $cppCheckPath }
 }
 else {
     Invoke-Main
