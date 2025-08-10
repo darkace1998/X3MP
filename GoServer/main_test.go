@@ -63,7 +63,7 @@ func TestHandleConnect_ExistingShipBroadcast(t *testing.T) {
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping TestHandleConnect_ExistingShipBroadcast in CI environment due to network timeout issues")
 	}
-	
+
 	// 1. Setup the server and manually add an existing ship
 	server := NewServer()
 	existingShipID := int32(10)
@@ -156,7 +156,7 @@ func TestHandleConnect(t *testing.T) {
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping TestHandleConnect in CI environment due to network timeout issues")
 	}
-	
+
 	t.Log("Starting TestHandleConnect")
 	// 1. Setup the server
 	server := NewServer()

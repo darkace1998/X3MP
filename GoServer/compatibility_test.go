@@ -111,7 +111,7 @@ func TestServerGameStateUpdate(t *testing.T) {
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping TestServerGameStateUpdate in CI environment due to functional test issues")
 	}
-	
+
 	// 1. Setup server and connect a client
 	server := NewServer()
 	go func() {
@@ -190,7 +190,7 @@ func TestServerClientConnection(t *testing.T) {
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping TestServerClientConnection in CI environment due to deadlock issues")
 	}
-	
+
 	// 1. Setup and run the server in a goroutine
 	server := NewServer()
 	go func() {
