@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <root name="." />
+    <builddir>cppcheck-build</builddir>
+    
+    <!-- Include paths -->
+    <includedir>
+        <dir name="." />
+    </includedir>
+    
+    <!-- Source paths to analyze -->
+    <paths>
+        <dir name="." />
+    </paths>
+    
+    <!-- Exclude patterns -->
+    <exclude>
+        <path name="pugixml.cpp" />
+        <path name="pugixml.hpp" />
+        <path name="pugiconfig.hpp" />
+    </exclude>
+    
+    <!-- Libraries to check against -->
+    <libraries>
+        <library>windows</library>
+        <library>std</library>
+    </libraries>
+    
+    <!-- Suppressions for third-party code or false positives -->
+    <suppressions>
+        <suppression>
+            <id>missingInclude</id>
+            <fileName>*</fileName>
+        </suppression>
+        <suppression>
+            <id>unusedFunction</id>
+            <fileName>dllmain.cpp</fileName>
+        </suppression>
+    </suppressions>
+</project>

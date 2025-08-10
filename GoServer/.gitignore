@@ -1,0 +1,37 @@
+# Build artifacts
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go build artifacts
+x3mp_goserver
+x3mp_goserver.exe
+
+# Test and coverage files
+*.out
+coverage.html
+
+# Security and lint reports
+security-report.json
+security-report.xml
+reports/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Compilation database for clang-tidy
+compile_commands.json

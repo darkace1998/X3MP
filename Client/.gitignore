@@ -1,0 +1,37 @@
+# Build artifacts
+*.exe
+*.dll
+*.obj
+*.lib
+*.pdb
+*.ilk
+
+# Visual Studio files
+Debug/
+Release/
+x64/
+.vs/
+*.user
+*.suo
+*.ncb
+*.aps
+
+# Analysis reports
+reports/
+cppcheck-build/
+*.sarif
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Compilation database for clang-tidy
+compile_commands.json
+
+# OS files
+.DS_Store
+Thumbs.db
