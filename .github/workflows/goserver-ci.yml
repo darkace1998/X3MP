@@ -28,6 +28,17 @@ jobs:
         cache: true
         cache-dependency-path: GoServer/go.mod
 
+    - name: Cache Go tools
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/go/bin/golangci-lint
+          ~/go/bin/gosec
+          ~/go/bin/goimports
+        key: ${{ runner.os }}-go-tools-${{ hashFiles('GoServer/Makefile') }}
+        restore-keys: |
+          ${{ runner.os }}-go-tools-
+
     - name: Install dependencies
       working-directory: GoServer
       run: |
@@ -36,6 +47,7 @@ jobs:
 
     - name: Install tools
       working-directory: GoServer
+      timeout-minutes: 10
       run: make install-tools
 
     - name: Run go fmt check
@@ -54,10 +66,12 @@ jobs:
 
     - name: Run golangci-lint
       working-directory: GoServer
+      timeout-minutes: 10
       run: golangci-lint run --out-format=github-actions
 
     - name: Run gosec security scanner
       working-directory: GoServer
+      timeout-minutes: 5
       run: |
         gosec -fmt=sarif -out=gosec-report.sarif ./...
         gosec -fmt=json -out=gosec-report.json ./...
@@ -71,7 +85,8 @@ jobs:
 
     - name: Run tests
       working-directory: GoServer
-      run: go test -v -race -coverprofile=coverage.out ./...
+      timeout-minutes: 10
+      run: go test -v -race -coverprofile=coverage.out -timeout=5m ./...
 
     - name: Generate coverage report
       working-directory: GoServer
