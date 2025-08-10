@@ -104,7 +104,11 @@ func TestHandleConnect_ExistingShipBroadcast(t *testing.T) {
 	readFinished := make(chan *network.CreateShipPacket)
 	go func() {
 		// Set read timeout for UDP operations
-		clientConn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		if err := clientConn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			t.Logf("Failed to set read deadline: %v", err)
+			close(readFinished)
+			return
+		}
 		// We expect a ConnectAcknowledge packet first, then a CreateShip packet
 		// for the existing ship.
 		buf := make([]byte, 1024)
@@ -191,7 +195,11 @@ func TestHandleConnect(t *testing.T) {
 	readFinished := make(chan bool)
 	go func() {
 		// Set read timeout for UDP operations
-		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			t.Errorf("Failed to set read deadline: %v", err)
+			readFinished <- true
+			return
+		}
 		buf := make([]byte, 1024)
 		// Expect ConnectAcknowledge
 		_, _, err := conn.ReadFromUDP(buf)
