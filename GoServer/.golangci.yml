@@ -27,7 +27,7 @@ linters:
     - prealloc       # Slice preallocation
     - noctx          # HTTP request without context
     - bodyclose      # HTTP response body close
-    - exportloopref  # Loop variable reference issues
+    - copyloopvar    # Loop variable copying issues (replaces exportloopref)
     - sqlclosecheck  # SQL rows/stmt close checker
 
 linters-settings:
