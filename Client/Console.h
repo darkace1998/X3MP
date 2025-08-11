@@ -20,8 +20,15 @@ namespace x3
 	{
 	private:
 		FILE* f;
-	public:
 		Console();
+		static Console* instance;
+
+	public:
+		// Delete copy constructor and assignment operator
+		Console(const Console&) = delete;
+		Console& operator=(const Console&) = delete;
+
+		static Console& GetInstance();
 		void Log(std::string, MessageLevel lvl);
 		void Log(const char* str, MessageLevel lvl);
 		void Close();

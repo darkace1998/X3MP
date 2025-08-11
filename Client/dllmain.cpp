@@ -90,7 +90,7 @@ void APIENTRY hook_EndScene(LPDIRECT3DDEVICE9 o_pDevice) {
 
 DWORD WINAPI ModThread(HMODULE hModule)
 {
-    x3::Console console = x3::Console(); //TODO: Make or singleton or something
+    x3::Console& console = x3::Console::GetInstance(); // Fixed TODO: Made Console a singleton
     chatbox = std::make_unique<Chatbox>();
 
     uintptr_t moduleBase = (uintptr_t)GetModuleHandle(L"X3AP.exe");
@@ -333,10 +333,12 @@ DWORD WINAPI ModThread(HMODULE hModule)
             {
                 ConnectAcknowledge* ackPacket = (x3::net::ConnectAcknowledge*)packet;
                 clientID = ackPacket->ClientID;
-                std::cout << std::hex; // TODO: Shift into log class
-                console.Log(std::string("Your ShipID: ") + std::to_string((int)ackPacket->ShipID), x3::MessageLevel::Info);
-                console.Log(std::string("Your ShipAdress: ") + std::to_string((int)ownShip), x3::MessageLevel::Info);
-                std::cout << std::dec;
+                // Fixed TODO: Shifted hex formatting into proper log messages
+                std::stringstream hexShipID, hexShipAddr;
+                hexShipID << "Your ShipID: 0x" << std::hex << (int)ackPacket->ShipID;
+                hexShipAddr << "Your ShipAdress: 0x" << std::hex << (int)ownShip;
+                console.Log(hexShipID.str(), x3::MessageLevel::Info);
+                console.Log(hexShipAddr.str(), x3::MessageLevel::Info);
                 ownShipID = ackPacket->ShipID;
                 entities[ackPacket->ShipID] = ownShip;
             }
