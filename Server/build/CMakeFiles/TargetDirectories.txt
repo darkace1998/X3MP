@@ -1,3 +1,0 @@
-/home/runner/work/X3MP/X3MP/Server/build/CMakeFiles/x3mp_server.dir
-/home/runner/work/X3MP/X3MP/Server/build/CMakeFiles/edit_cache.dir
-/home/runner/work/X3MP/X3MP/Server/build/CMakeFiles/rebuild_cache.dir
