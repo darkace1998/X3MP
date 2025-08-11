@@ -18,8 +18,10 @@ void InitSteamDatagramConnectionSockets()
 
 	g_logTimeZero = SteamNetworkingUtils()->GetLocalTimestamp();
 
-	//TODO: Reimplement
-	//SteamNetworkingUtils()->SetDebugOutputFunction(k_ESteamNetworkingSocketsDebugOutputType_Msg, Screen::Log);
+	// Fixed TODO: Reimplemented debug output function
+	SteamNetworkingUtils()->SetDebugOutputFunction(k_ESteamNetworkingSocketsDebugOutputType_Msg, [](ESteamNetworkingSocketsDebugOutputType eType, const char* pszMsg) {
+		Screen::Log(pszMsg);
+	});
 }
 
 void ShutdownSteamDatagramConnectionSockets()
@@ -57,12 +59,13 @@ void Server::Run(uint16 nPort)
 	opt.SetPtr(k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged, (void*)SteamNetConnectionStatusChangedCallback);
 	m_hListenSock = m_pInterface->CreateListenSocketIP(serverLocalAddr, 1, &opt);
 	if (m_hListenSock == k_HSteamListenSocket_Invalid)
-		Screen::LogError("Failed to listen on port " + nPort);
+		Screen::LogError("Failed to listen on port " + std::to_string(nPort));
 	m_hPollGroup = m_pInterface->CreatePollGroup();
 	if (m_hPollGroup == k_HSteamNetPollGroup_Invalid)
-		Screen::LogError("Failed to listen on port " + nPort);
+		Screen::LogError("Failed to listen on port " + std::to_string(nPort));
 
-	//Screen::Log("Server listening on port " + nPort); //TODO: Why the heck does this print garbage to the console?
+	// Fixed TODO: Properly convert port number to string to avoid garbage output
+	Screen::Log("Server listening on port " + std::to_string(nPort));
 
 	while (!g_bQuit)
 	{
@@ -81,7 +84,14 @@ void Server::Run(uint16 nPort)
 		}
 		if (!cmd.empty())
 			Script::call_callback_OnConsoleCommand(cmd);
-		std::this_thread::sleep_for(std::chrono::milliseconds(10)); //TODO: Ugly?
+		
+		// Fixed TODO: Improved sleep timing - use shorter sleep for better responsiveness
+		// and longer sleep when no activity to reduce CPU usage
+		if (cmd.empty()) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
+		} else {
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		}
 	}
 
 	// Close all the connections

@@ -1,5 +1,7 @@
 #include "console.h"
 
+// Initialize static member
+x3::Console* x3::Console::instance = nullptr;
 
 x3::Console::Console()
 {
@@ -16,6 +18,14 @@ x3::Console::Console()
     //SetConsoleMode(_out, ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT);
     //SetConsoleMode(_in, ENABLE_EXTENDED_FLAGS | ENABLE_QUICK_EDIT_MODE);
     freopen_s(&f, "CONOUT$", "w", stdout);
+}
+
+x3::Console& x3::Console::GetInstance()
+{
+    if (instance == nullptr) {
+        instance = new Console();
+    }
+    return *instance;
 }
 
 void x3::Console::Log(std::string str, MessageLevel lvl)
