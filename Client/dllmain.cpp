@@ -294,7 +294,8 @@ DWORD WINAPI ModThread(HMODULE hModule)
                 entity->WorldData->PosX = createPacket->PosX;
                 entity->WorldData->PosY = createPacket->PosY;
                 entity->WorldData->PosZ = createPacket->PosZ;
-                /*entity->WorldData->RotQuaternionX = createPacket->RotX; // TODO: Fix
+                // Set rotation quaternion and orientation vectors
+                entity->WorldData->RotQuaternionX = createPacket->RotX;
                 entity->WorldData->RotQuaternionY = createPacket->RotY;
                 entity->WorldData->RotQuaternionZ = createPacket->RotZ;
                 entity->WorldData->RotQuaternionW = createPacket->RotW;
@@ -304,7 +305,7 @@ DWORD WINAPI ModThread(HMODULE hModule)
                 entity->WorldData->UpQuaternionW = createPacket->UpW;
                 entity->WorldData->LookAtX = createPacket->LookAtX;
                 entity->WorldData->LookAtY = createPacket->LookAtY;
-                entity->WorldData->LookAtZ = createPacket->LookAtZ;*/
+                entity->WorldData->LookAtZ = createPacket->LookAtZ;
                 console.Log(std::string("Creating ship at position: ") + std::to_string(createPacket->PosX) + std::string("|..."), x3::MessageLevel::Debug);
             }
 
