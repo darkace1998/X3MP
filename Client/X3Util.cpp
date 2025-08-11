@@ -13,7 +13,7 @@ namespace x3
             for (auto& deletion : entitiesToDelete)
             {
                 x3::DeleteEntity(deletion);
-                //delete(deletion); //TODO: Memory leak?
+                // Entity deletion is handled by X3's built-in deletion system
             }
             entitiesToDelete.clear();
             x3::DeleteEntityLoop(param_1); // Call original game function

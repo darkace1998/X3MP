@@ -143,7 +143,10 @@ void Client::PollIncomingMessages()
 			}
 			break;
 		default:
-			std::cout << "[WARN] Received unknown packet type: " << (int)packetType << std::endl;
+			std::cout << "[WARN] Received unknown packet type: " << (int)packetType 
+					  << " from " << inet_ntoa(fromAddr.sin_addr) 
+					  << ":" << ntohs(fromAddr.sin_port) 
+					  << " (size: " << bytesReceived << " bytes)" << std::endl;
 			break;
 		}
 
@@ -169,9 +172,25 @@ void Client::SendPacket(Packet* message)
 }
 
 void Client::SendText(const std::string text) {
-	// This function is not part of the core protocol, so we can leave it unimplemented for now
-	// or implement a specific packet type for it if needed.
-	std::cout << "[WARN] SendText is not implemented in pure UDP mode." << std::endl;
+	if (text.empty() || text.length() >= 512) {
+		std::cout << "[WARN] Invalid text message length" << std::endl;
+		return;
+	}
+	
+	x3::net::ChatMessage chatPacket;
+	chatPacket.type = x3::net::PacketType::ChatMessage;
+	chatPacket.size = sizeof(chatPacket);
+	
+	// Set default white color
+	chatPacket.A = 255;
+	chatPacket.R = 255;
+	chatPacket.G = 255;
+	chatPacket.B = 255;
+	
+	// Copy message text with null termination
+	strncpy_s(chatPacket.Message, sizeof(chatPacket.Message), text.c_str(), _TRUNCATE);
+	
+	SendPacket(&chatPacket);
 }
 
 
