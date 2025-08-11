@@ -15,7 +15,7 @@ Renderer::~Renderer()
 
 void Renderer::DrawFilledRect(int x, int y, int w, int h, D3DCOLOR col) const
 {
-	D3DRECT rect = { x,y,x + w,y + w };
+	D3DRECT rect = { x,y,x + w,y + h };
 	pDevice->Clear(1, &rect, D3DCLEAR_TARGET, col, 0, 0);
 }
 

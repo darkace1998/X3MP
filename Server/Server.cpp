@@ -27,7 +27,7 @@ void InitSteamDatagramConnectionSockets()
 void ShutdownSteamDatagramConnectionSockets()
 {
 	// Give connections time to finish up.  This is an application layer protocol
-	// here, it's not TCP.  Note that if you have an applicatistd::function<void(int)>is pending.
+	// here, it's not TCP.  Note that if you have an application layer protocol, pending operations should be completed.
 	std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 	GameNetworkingSockets_Kill();
@@ -74,11 +74,11 @@ void Server::Run(uint16 nPort)
 		std::string cmd = Screen::PollCommand();
 		if(cmd == "exit")
 			g_bQuit = true;
-		if (cmd.rfind("say ", 0) == 1)
+		if (cmd.rfind("say ", 0) == 0)
 		{
 			x3::net::ChatMessage message;
 			cmd = cmd.erase(0, 4).insert(0, "Server: ");
-			memcpy(message.Message, cmd.c_str(), cmd.length() - 4);
+			strncpy_s(message.Message, sizeof(message.Message), cmd.c_str(), _TRUNCATE);
 			SendPacketToAllClients(&message);
 			continue;
 		}

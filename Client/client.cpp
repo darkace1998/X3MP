@@ -146,7 +146,7 @@ void Client::PollIncomingMessages()
 			std::cout << "[WARN] Received unknown packet type: " << (int)packetType 
 					  << " from " << inet_ntoa(fromAddr.sin_addr) 
 					  << ":" << ntohs(fromAddr.sin_port) 
-					  << " (size: " << bytesReceived << " bytes)" << std::endl;
+					  << " (size: " << iResult << " bytes)" << std::endl;
 			break;
 		}
 

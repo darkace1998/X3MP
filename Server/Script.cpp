@@ -70,7 +70,7 @@ void Script::Start()
     int x = lua_pcall(L, 0, 1, 0);
     if(x != 0)
     {
-        Screen::LogError("There was an error during function execution.  " + x);
+        Screen::LogError("There was an error during function execution. Error code: " + std::to_string(x));
     }
     lua_pop(L,1);
 }
@@ -83,7 +83,7 @@ void Script::Stop()
     int x = lua_pcall(L, 0, 1, 0);
     if(x != 0)
     {
-        Screen::LogError("There was an error during function execution.  " + x);
+        Screen::LogError("There was an error during function execution. Error code: " + std::to_string(x));
     }
     lua_pop(L,1);
     lua_close(L);
@@ -98,7 +98,7 @@ void Script::call_OnPlayerConnect(int clientID)
     int x = lua_pcall(L, 1, 1, 0);
     if(x != 0)
     {
-        Screen::LogError("There was an error during function execution.  " + x);
+        Screen::LogError("There was an error during function execution. Error code: " + std::to_string(x));
     }
     lua_pop(L,1);
 }
@@ -112,7 +112,7 @@ void Script::call_OnConsoleCommand(std::string cmd)
     int x = lua_pcall(L, 1, 1, 0);
     if (x != 0)
     {
-        Screen::LogError("There was an error during function execution.  " + x);
+        Screen::LogError("There was an error during function execution. Error code: " + std::to_string(x));
     }
     lua_pop(L, 1);
 }
