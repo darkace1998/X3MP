@@ -189,7 +189,8 @@ namespace net {
         }
         
         // Simple in-order delivery - deliver consecutive packets starting from the last delivered
-        SequenceNumber expectedSequence = m_lastReceivedSequence;
+        // Simple in-order delivery - deliver consecutive packets starting from the next expected sequence
+        SequenceNumber expectedSequence = m_lastReceivedSequence + 1;
         
         auto it = m_receivedPackets.find(expectedSequence);
         while (it != m_receivedPackets.end()) {
