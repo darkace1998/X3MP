@@ -1,4 +1,5 @@
 #include "console.h"
+#include "Logger.h"
 
 // Initialize static member
 x3::Console* x3::Console::instance = nullptr;
@@ -30,21 +31,26 @@ x3::Console& x3::Console::GetInstance()
 
 void x3::Console::Log(std::string str, MessageLevel lvl)
 {
-    std::string prefix;
+    // Map old message levels to new logging system
+    x3::LogLevel newLevel;
     switch (lvl)
     {
     case MessageLevel::Debug:
-        prefix = "[DBG]";
+        newLevel = x3::LogLevel::Debug;
         break;
     case MessageLevel::Info:
-        prefix = "[INF]";
+        newLevel = x3::LogLevel::Info;
         break;
     case MessageLevel::Error:
-        prefix = "[ERR]";
+        newLevel = x3::LogLevel::Error;
+        break;
+    default:
+        newLevel = x3::LogLevel::Info;
         break;
     }
-
-    std::cout << prefix << " " << str << std::endl;
+    
+    // Use the new centralized logging system
+    x3::LoggerManager::GetLogger().Log(newLevel, str);
 }
 
 void x3::Console::Log(const char* str, MessageLevel lvl)

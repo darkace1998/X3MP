@@ -20,9 +20,12 @@
 #include <queue>
 #include <map>
 #include <cctype>
+#include <memory>
 
 #include <net_message.h>
 #include <net_packets.h>
+#include "Logger.h"
+#include "ReliabilityManager.h"
 
 using namespace x3::net;
 
@@ -43,19 +46,21 @@ class Client
 {
 public:
 	ConnectionStatus connectionStatus = ConnectionStatus::Disconnected;
-	std::queue<x3::net::Packet*> receivedPackets;
+	std::queue<std::unique_ptr<x3::net::Packet>> receivedPackets;
 
 	void Run(const char* ip, unsigned short port);
 	void Stop();
 	
-	void SendPacket(Packet* message);
+	void SendPacket(std::unique_ptr<Packet> message);
 	void SendText(const std::string text);
 
 private:
 	bool m_bRunning = false;
 	SOCKET m_socket = INVALID_SOCKET;
 	sockaddr_in m_serverAddr;
+	std::unique_ptr<x3::net::ReliabilityManager> m_reliabilityManager;
 
 	void Connect(const char* ip, unsigned short port);
 	void PollIncomingMessages();
+	void OnReliablePacketReceived(const uint8_t* data, size_t size);
 };

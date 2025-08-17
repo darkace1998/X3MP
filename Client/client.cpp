@@ -6,7 +6,7 @@ bool InitWinsock()
 	WSADATA wsaData;
 	int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
 	if (iResult != 0) {
-		std::cout << "[ERR] WSAStartup failed: " << iResult << std::endl;
+		LOG_ERROR("WSAStartup failed: " + std::to_string(iResult));
 		return false;
 	}
 	return true;
@@ -31,6 +31,14 @@ void Client::Run(const char* ip, unsigned short port)
 		return;
 	}
 
+	// Initialize reliability manager
+	m_reliabilityManager = std::make_unique<x3::net::ReliabilityManager>();
+	m_reliabilityManager->SetPacketCallback(
+		[this](const uint8_t* data, size_t size) {
+			OnReliablePacketReceived(data, size);
+		}
+	);
+
 	Connect(ip, port);
 	if (connectionStatus == ConnectionStatus::Failed) {
 		ShutdownWinsock();
@@ -41,6 +49,9 @@ void Client::Run(const char* ip, unsigned short port)
 	while (m_bRunning)
 	{
 		PollIncomingMessages();
+		if (m_reliabilityManager) {
+			m_reliabilityManager->Update();
+		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 	}
 
@@ -53,7 +64,7 @@ void Client::Connect(const char* ip, unsigned short port)
 
 	m_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (m_socket == INVALID_SOCKET) {
-		std::cout << "[ERR] Failed to create socket: " << WSAGetLastError() << std::endl;
+		LOG_ERROR("Failed to create socket: " + std::to_string(WSAGetLastError()));
 		this->connectionStatus = ConnectionStatus::Failed;
 		return;
 	}
@@ -61,7 +72,7 @@ void Client::Connect(const char* ip, unsigned short port)
 	// Set non-blocking
 	u_long mode = 1;
 	if (ioctlsocket(m_socket, FIONBIO, &mode) != 0) {
-		std::cout << "[ERR] Failed to set non-blocking mode: " << WSAGetLastError() << std::endl;
+		LOG_ERROR("Failed to set non-blocking mode: " + std::to_string(WSAGetLastError()));
 		closesocket(m_socket);
 		this->connectionStatus = ConnectionStatus::Failed;
 		return;
@@ -71,7 +82,7 @@ void Client::Connect(const char* ip, unsigned short port)
 	m_serverAddr.sin_port = htons(port);
 	inet_pton(AF_INET, ip, &m_serverAddr.sin_addr);
 
-	std::cout << "[INF] Client socket created. Ready to send to " << ip << ":" << port << std::endl;
+	LOG_INFO("Client socket created. Ready to send to " + std::string(ip) + ":" + std::to_string(port));
 
 	// Since UDP is connectionless, we'll consider ourselves "Connected" after the first packet is sent
 	// and we receive a ConnectAcknowledge. For now, we are just "Connecting".
@@ -94,7 +105,7 @@ void Client::PollIncomingMessages()
 				break;
 			}
 			else {
-				std::cout << "[ERR] recvfrom failed: " << WSAGetLastError() << std::endl;
+				LOG_ERROR("recvfrom failed: " + std::to_string(WSAGetLastError()));
 				// Consider the connection failed
 				this->connectionStatus = ConnectionStatus::Failed;
 				Stop();
@@ -102,95 +113,134 @@ void Client::PollIncomingMessages()
 			}
 		}
 
-		if (iResult < sizeof(Packet)) {
-			std::cout << "[ERR] Packet is malformed (too small)." << std::endl;
+		if (iResult <= 0) {
+			LOG_WARNING("Received empty or invalid packet");
 			continue;
 		}
 
-		PacketType packetType = ((Packet*)recvbuf)->type;
-		Packet* newPacket = nullptr;
-
-		switch (packetType)
-		{
-		case PacketType::ShipUpdate:
-			if (iResult >= sizeof(ShipUpdate))
-			{
-				newPacket = new ShipUpdate();
-				memcpy(newPacket, recvbuf, sizeof(ShipUpdate));
-			}
-			break;
-		case PacketType::CreateShip:
-			if (iResult >= sizeof(CreateShip))
-			{
-				newPacket = new CreateShip();
-				memcpy(newPacket, recvbuf, sizeof(CreateShip));
-			}
-			break;
-		case PacketType::DeleteShip:
-			if (iResult >= sizeof(DeleteShip))
-			{
-				newPacket = new DeleteShip();
-				memcpy(newPacket, recvbuf, sizeof(DeleteShip));
-			}
-			break;
-		case PacketType::ConnectAcknowledge:
-			if (iResult >= sizeof(ConnectAcknowledge))
-			{
-				newPacket = new ConnectAcknowledge();
-				memcpy(newPacket, recvbuf, sizeof(ConnectAcknowledge));
-				this->connectionStatus = ConnectionStatus::Connected;
-				std::cout << "[INF] Connection Acknowledged by server!" << std::endl;
-			}
-			break;
-		default:
-			std::cout << "[WARN] Received unknown packet type: " << (int)packetType 
-					  << " from " << inet_ntoa(fromAddr.sin_addr) 
-					  << ":" << ntohs(fromAddr.sin_port) 
-					  << " (size: " << iResult << " bytes)" << std::endl;
-			break;
-		}
-
-		if (newPacket)
-		{
-			receivedPackets.push(newPacket);
-		}
-		else
-		{
-			std::cout << "[ERR] Packet is malformed (size mismatch or unknown type)." << std::endl;
+		// Process through reliability manager
+		if (m_reliabilityManager) {
+			m_reliabilityManager->ProcessReceivedPacket(
+				reinterpret_cast<const uint8_t*>(recvbuf), 
+				static_cast<size_t>(iResult)
+			);
 		}
 	}
 }
 
-void Client::SendPacket(Packet* message)
+void Client::OnReliablePacketReceived(const uint8_t* data, size_t size)
 {
-	if (m_socket == INVALID_SOCKET) return;
+	if (size < sizeof(Packet)) {
+		LOG_WARNING("Packet is malformed (too small)");
+		return;
+	}
 
-	int iResult = sendto(m_socket, (const char*)message, message->size, 0, (SOCKADDR*)&m_serverAddr, sizeof(m_serverAddr));
-	if (iResult == SOCKET_ERROR) {
-		std::cout << "[ERR] sendto failed: " << WSAGetLastError() << std::endl;
+	PacketType packetType = reinterpret_cast<const Packet*>(data)->type;
+	std::unique_ptr<Packet> newPacket;
+
+	switch (packetType)
+	{
+	case PacketType::ShipUpdate:
+		if (size >= sizeof(ShipUpdate))
+		{
+			newPacket = std::make_unique<ShipUpdate>();
+			std::memcpy(newPacket.get(), data, sizeof(ShipUpdate));
+		}
+		break;
+	case PacketType::CreateShip:
+		if (size >= sizeof(CreateShip))
+		{
+			newPacket = std::make_unique<CreateShip>();
+			std::memcpy(newPacket.get(), data, sizeof(CreateShip));
+		}
+		break;
+	case PacketType::DeleteShip:
+		if (size >= sizeof(DeleteShip))
+		{
+			newPacket = std::make_unique<DeleteShip>();
+			std::memcpy(newPacket.get(), data, sizeof(DeleteShip));
+		}
+		break;
+	case PacketType::ConnectAcknowledge:
+		if (size >= sizeof(ConnectAcknowledge))
+		{
+			newPacket = std::make_unique<ConnectAcknowledge>();
+			std::memcpy(newPacket.get(), data, sizeof(ConnectAcknowledge));
+			this->connectionStatus = ConnectionStatus::Connected;
+			LOG_INFO("Connection Acknowledged by server!");
+		}
+		break;
+	default:
+		LOG_WARNING("Received unknown packet type: " + std::to_string(static_cast<int>(packetType)) + 
+		           " (size: " + std::to_string(size) + " bytes)");
+		break;
+	}
+
+	if (newPacket)
+	{
+		receivedPackets.push(std::move(newPacket));
+	}
+	else
+	{
+		LOG_ERROR("Packet is malformed (size mismatch or unknown type)");
+	}
+}
+
+void Client::SendPacket(std::unique_ptr<Packet> message)
+{
+	if (m_socket == INVALID_SOCKET || !message) return;
+
+	// Prepare packet with reliability layer
+	if (m_reliabilityManager) {
+		auto reliablePacket = m_reliabilityManager->PreparePacket(
+			reinterpret_cast<const uint8_t*>(message.get()),
+			message->size,
+			true // Make packets reliable by default
+		);
+
+		int iResult = sendto(m_socket, 
+						   reinterpret_cast<const char*>(reliablePacket.data()), 
+						   static_cast<int>(reliablePacket.size()), 
+						   0, 
+						   reinterpret_cast<SOCKADDR*>(&m_serverAddr), 
+						   sizeof(m_serverAddr));
+		if (iResult == SOCKET_ERROR) {
+			LOG_ERROR("sendto failed: " + std::to_string(WSAGetLastError()));
+		}
+	} else {
+		// Fallback to direct send if reliability manager is not available
+		int iResult = sendto(m_socket, 
+						   reinterpret_cast<const char*>(message.get()), 
+						   static_cast<int>(message->size), 
+						   0, 
+						   reinterpret_cast<SOCKADDR*>(&m_serverAddr), 
+						   sizeof(m_serverAddr));
+		if (iResult == SOCKET_ERROR) {
+			LOG_ERROR("sendto failed: " + std::to_string(WSAGetLastError()));
+		}
 	}
 }
 
 void Client::SendText(const std::string text) {
 	if (text.empty() || text.length() >= 512) {
-		std::cout << "[WARN] Invalid text message length" << std::endl;
+		LOG_WARNING("Invalid text message length");
 		return;
 	}
 	
-	x3::net::ChatMessage chatPacket;
-	chatPacket.type = x3::net::PacketType::ChatMessage;
-	chatPacket.size = sizeof(chatPacket);
+	auto chatPacket = std::make_unique<x3::net::ChatMessage>();
+	chatPacket->type = x3::net::PacketType::ChatMessage;
+	chatPacket->size = sizeof(*chatPacket);
 	
 	// Set default white color
-	chatPacket.A = 255;
-	chatPacket.R = 255;
-	chatPacket.G = 255;
-	chatPacket.B = 255;
+	chatPacket->A = 255;
+	chatPacket->R = 255;
+	chatPacket->G = 255;
+	chatPacket->B = 255;
 	
 	// Copy message text with null termination
-	strncpy_s(chatPacket.Message, sizeof(chatPacket.Message), text.c_str(), _TRUNCATE);
+	strncpy_s(chatPacket->Message, sizeof(chatPacket->Message), text.c_str(), _TRUNCATE);
 	
-	SendPacket(&chatPacket);
+	SendPacket(std::move(chatPacket));
 }
 
 
