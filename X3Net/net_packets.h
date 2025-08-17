@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include "net_message.h"
 
 namespace x3 {

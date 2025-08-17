@@ -26,7 +26,7 @@
 
 using namespace x3::net;
 
-const uint16 DEFAULT_SERVER_PORT = 13337;
+const uint16_t DEFAULT_SERVER_PORT = 13337;
 
 bool InitWinsock();
 void ShutdownWinsock();
