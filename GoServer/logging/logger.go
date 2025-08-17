@@ -68,7 +68,7 @@ func (l *StandardLogger) log(level LogLevel, msg string) {
 	if !l.shouldLog(level) {
 		return
 	}
-	
+
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
 	formatted := fmt.Sprintf("%s [%s] %s", timestamp, level.String(), msg)
 	l.logger.Println(formatted)

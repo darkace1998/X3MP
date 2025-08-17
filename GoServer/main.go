@@ -250,9 +250,9 @@ func (s *Server) handleChatMessage(addr *net.UDPAddr, data []byte) {
 		log.Printf("Error decoding ChatMessagePacket: %v", err)
 		return
 	}
-	
+
 	log.Printf("Chat message from %s: %s", addr.String(), string(chatPkt.Message[:]))
-	
+
 	// Broadcast the chat message to all other clients
 	s.broadcastPacket(&chatPkt, addr.String())
 }
@@ -263,9 +263,9 @@ func (s *Server) handlePlayerChatEnter(addr *net.UDPAddr, data []byte) {
 		log.Printf("Error decoding PlayerChatEnterPacket: %v", err)
 		return
 	}
-	
+
 	log.Printf("Player chat enter from %s: %s", addr.String(), string(chatPkt.Message[:]))
-	
+
 	// Broadcast to all other clients
 	s.broadcastPacket(&chatPkt, addr.String())
 }
@@ -276,11 +276,11 @@ func (s *Server) handleDeleteShip(addr *net.UDPAddr, data []byte) {
 		log.Printf("Error decoding DeleteShipPacket: %v", err)
 		return
 	}
-	
+
 	// Remove ship from universe
 	s.universe.DeleteShip(deletePkt.ShipID)
 	log.Printf("Ship deleted: %d", deletePkt.ShipID)
-	
+
 	// Broadcast to all clients
 	s.broadcastPacket(&deletePkt, "")
 }
@@ -291,9 +291,9 @@ func (s *Server) handleCreateStar(addr *net.UDPAddr, data []byte) {
 		log.Printf("Error decoding CreateStarPacket: %v", err)
 		return
 	}
-	
+
 	log.Printf("Star creation request from %s: StarID %d, Model %d", addr.String(), starPkt.StarID, starPkt.Model)
-	
+
 	// Broadcast to all clients
 	s.broadcastPacket(&starPkt, "")
 }
