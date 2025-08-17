@@ -13,34 +13,41 @@ if(WIN32)
     add_definitions(-DNOMINMAX)
     set(PLATFORM_LIBS ws2_32 d3d9 d3dx9)
     set(PLATFORM_SOURCES )
+    
+    # Source files (Windows)
+    set(CLIENT_SOURCES
+        Chatbox.cpp
+        Console.cpp
+        Logger.cpp
+        Mod.cpp
+        Renderer.cpp
+        ReliabilityManager.cpp
+        X3Functions.cpp
+        X3Util.cpp
+        client.cpp
+        directx.cpp
+        dllmain.cpp
+        mem.cpp
+        pugixml.cpp
+        settings.cpp
+    )
 else()
-    # Linux/Unix-specific settings  
+    # Linux/Unix-specific settings - exclude DirectX dependent files
     set(PLATFORM_LIBS pthread dl)
     set(PLATFORM_SOURCES )
+    
+    # Source files (Linux/Unix - minimal cross-platform subset)
+    set(CLIENT_SOURCES
+        Logger.cpp
+        ReliabilityManager.cpp
+        pugixml.cpp
+    )
 endif()
 
 # Include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../X3Net
-)
-
-# Source files
-set(CLIENT_SOURCES
-    Chatbox.cpp
-    Console.cpp
-    Logger.cpp
-    Mod.cpp
-    Renderer.cpp
-    ReliabilityManager.cpp
-    X3Functions.cpp
-    X3Util.cpp
-    client.cpp
-    directx.cpp
-    dllmain.cpp
-    mem.cpp
-    pugixml.cpp
-    settings.cpp
 )
 
 # Header files (for IDE support)
