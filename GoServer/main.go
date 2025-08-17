@@ -270,7 +270,7 @@ func (s *Server) handlePlayerChatEnter(addr *net.UDPAddr, data []byte) {
 	s.broadcastPacket(&chatPkt, addr.String())
 }
 
-func (s *Server) handleDeleteShip(addr *net.UDPAddr, data []byte) {
+func (s *Server) handleDeleteShip(_ *net.UDPAddr, data []byte) {
 	var deletePkt network.DeleteShipPacket
 	if err := network.FromBytes(data, &deletePkt); err != nil {
 		log.Printf("Error decoding DeleteShipPacket: %v", err)
